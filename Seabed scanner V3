@@ -1,5 +1,5 @@
-New attempt 02.jan 26
-
+New attempt
+-----
 
 gN,sN=input.getNumber,output.setNumber
 
