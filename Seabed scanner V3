@@ -1,5 +1,5 @@
 New attempt 02.jan 26
---https://lua.flaffipony.rocks/?id=x75EKMgxq6
+
 
 gN,sN=input.getNumber,output.setNumber
 
@@ -22,6 +22,11 @@ function addVectors(...)
 	return result
 end
 
+function dist(a, b)
+    local b = b or {x = 0, y = 0, z = 0}
+    return math.sqrt((b.x - a.x)^2 + (b.y - a.y)^2 + (b.z - a.z)^2)
+end
+
 
 function onTick()
     pos = {
@@ -29,21 +34,21 @@ function onTick()
     	y = gN(2),	--north
     	z = gN(3),	--up
     }
-    roll = gN(4)	--positive left
-    pitch = gN(5)	--positive up
-    azimuth = gN(6)	--positive left
+    roll = gN(4)	--left
+    pitch = gN(5)	--up
+    azimuth = gN(6)	--left
     
     
     
     vector = {
 		right_noRoll = {
-			x = math.cos(azimuth),
-			y = math.sin(azimuth),
+			x = math.cos(azimuth-math.pi/2),
+			y = math.sin(azimuth-math.pi/2),
 			z = 0
 		},
 		up_noRoll = {
-			x = math.cos(azimuth + math.pi) * math.sin(pitch),
-			y = math.sin(azimuth + math.pi) * math.sin(pitch),
+			x = math.cos(azimuth+math.pi) * math.sin(pitch),
+			y = math.sin(azimuth+math.pi) * math.sin(pitch),
 			z = math.cos(pitch)
 		}
 	}
@@ -53,6 +58,11 @@ function onTick()
 		y = vector.up_noRoll.y * math.sin(roll) + vector.right_noRoll.y * math.cos(roll),
 		z = vector.up_noRoll.z * math.sin(roll) + vector.right_noRoll.z * math.cos(roll)
 	}
+	
+	
+	-- print(vector.up_noRoll)
+	-- print(dist(vector.right))
+	-- print(vector.right)
 	
 	vector.forward = {
 		x = math.cos(azimuth) * math.cos(pitch),
@@ -68,8 +78,8 @@ function onTick()
 	
 	
     for i = 1, 1 do
-	    angleX = gN(7) * math.pi/4
-	    angleY = gN(8) * math.pi/4
+	    angleX = gN(7) * math.pi/4		--right
+	    angleY = gN(8) * math.pi/4		--up
 	    measuredDis = gN(9)
 	    
 	    sensorRelative = {
@@ -85,7 +95,7 @@ function onTick()
 			multiplyVector(vector.up, sensorRelative.z)
 		)
 		
-		print(i, measuredPos)
+		--print(i, measuredPos)
     end
     
 end
