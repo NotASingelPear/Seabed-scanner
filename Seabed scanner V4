@@ -117,8 +117,8 @@ recordKeeper = nil
 
 function onTick()
 	isPressing = input.getBool(1)
-	touchX = input.getNumber(3)
-	touchY = input.getNumber(4)
+	touchX = input.getNumber(7)
+	touchY = input.getNumber(8)
 	hi_boundary,lo_boundary = -2, -200--gN(1),gN(2)
 	run = input.getBool(3)
 	draught = 0 --
@@ -136,13 +136,20 @@ function onTick()
 	
 	-- test = gN(6)
 	
+	test1 = gN(9)
+	test2 = gN(10)
+	
+	
 	if run then
-		startCh = 9
-		for i = 0, 7 do
+		--startCh = 9
+		for i = 9, 32 do
 			filteredPos = {
-			    	x = gN(i),
-			    	y = gN(i+1),
-			    	z = gN(i+2)
+			    	-- x = gN(startCh + i)//1,
+			    	-- y = gN(startCh+1 + i)//1,
+			    	-- z = gN(startCh+2 + i)//1
+			    	x = gN(i)//1,
+			    	y = gN(i+1)//1,
+			    	z = gN(i+2)//1
 			    }
 			if filteredPos.x ~= 0 then
 		    	if not P[filteredPos.x] then
@@ -181,10 +188,23 @@ function onTick()
 end
 
 
+
+-- point = focusPoints[1000]
+-- print(point.vesselAngle)
+-- print(point.vesselDistUnits)
+
+--print(0 + math.cos(0 + point.vesselAngle) * ((point.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter))
+
+
 function onDraw()
 	w, h = screen.getWidth(), screen.getHeight()
 
+	-- if isPressing then
+	-- 	screen.drawText(1, 1, touchX .. ", " .. touchY)
+	-- end
+
 	if run then
+		clickedOnRadarDispThisTick = false
 		for _, focuspoint in pairs(focusPoints) do
 			--screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
 			
@@ -200,16 +220,40 @@ function onDraw()
 				sC(30,30,30)
 			end
 			
+			screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
+			
+			
+			
+			
 			if isPressing and check(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY) then--check(w + relativePos.x, h - relativePos.y) then
-				sC(255, 100, 0)
-				screen.drawText(2, h-17, string.format("%.0f", focuspoint.screenPosX) .. ", " .. string.format("%.0f", focuspoint.screenPosY))
-				screen.drawText(2, h-10, string.format("%.0f", math.deg(worldPos.x)) .. ", " .. string.format("%.0f", worldPos.y))
+				clickedOnRadarDispThisTick = true
+				clickedOnRadarDisp = true
+				clickedFocuspoint = focuspoint
+				
+				-- sC(255, 100, 0)
+				-- screen.drawText(2, h-17, string.format("%.0f", focuspoint.screenPosX) .. ", " .. string.format("%.0f", focuspoint.screenPosY))
+				-- screen.drawText(2, h-10, string.format("%.0f", math.deg(worldPos.x)) .. ", " .. string.format("%.0f", worldPos.y))
+				-- screen.drawCircle(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1)
 			end	
 			
-			screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
+			if isPressing and not clickedOnRadarDispThisTick then
+				clickedOnRadarDisp = false
+			end
 		end
 		
-		
+		if clickedOnRadarDisp then
+				sC(255, 100, 0)
+				
+				worldPos = {
+					x = (pos.x + math.cos(azimuth + clickedFocuspoint.vesselAngle) * clickedFocuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter,
+					y = (pos.y + math.sin(azimuth + clickedFocuspoint.vesselAngle) * clickedFocuspoint.vesselDistUnits * 10)
+				}
+				
+				--screen.drawText(2, h-17, string.format("%.0f", clickedFocuspoint.screenPosX) .. ", " .. string.format("%.0f", clickedFocuspoint.screenPosY))
+				screen.drawTextBox(2, h/2-10, w, 7, string.format("%.0f", worldPos.x), 0, 0)-- .. ", " .. string.format("%.0f", worldPos.y))
+				screen.drawTextBox(2, h/2-4, w, 7, string.format("%.0f", worldPos.y), 0, 0)
+				screen.drawCircle(w/2 + clickedFocuspoint.screenPosX, h/2 - clickedFocuspoint.screenPosY, 1)
+		end
 		
 		-- coll_warn = false
 		-- for i=0,42 do
@@ -238,6 +282,14 @@ function onDraw()
 		-- end
 		sC(255, 255, 255)
 		screen.drawTextBox(1, 1, w, 5, string.format("%.2f", azimuth), 0, 0)
+		
+		
+		
+		-- screen.drawText(10, 10, #record)
+		-- --if record[1] then
+		-- 	screen.drawText(10, 16, test1)
+		-- 	screen.drawText(10, 22, test2)
+		-- --end
 	end
 end
 
@@ -251,8 +303,6 @@ end
 
 
 --Recieves new measurements and calculates positions + througput of composite signal
-
-
 gN,sN,gB=input.getNumber,output.setNumber,input.getBool
 dT=screen.drawText
 pi=math.pi
@@ -384,18 +434,16 @@ function onTick()
 		}
 		
 		--SENSOR ORIENTATION: looking at sensor face - Big arrow facing down, small arrow facing left
-	    for i = 1, 2 do
-		    measuredDis = gN(sensorInputStartCh + (i-1))
-		    angleX = gN(sensorInputStartCh + (i-1) + 1) * math.pi/4		--right
-		    angleY = gN(sensorInputStartCh + (i-1) + 2) * math.pi/4		--up
-		    
-		    if true then--measuredDis > lowestDetectable and measuredDis < highestDetectable then
+	    for i = 9, 32, 3 do
+		    measuredDis = gN(i)
+		    angleX = gN(1 + i) * math.pi/4		--right
+		    angleY = gN(2 + i) * math.pi/4		--up
+		    if measuredDis > lowestDetectable and measuredDis < highestDetectable then
 			    sensorRelative = {
 			    	x = math.sin(angleX) * math.cos(angleY) * measuredDis,	--right
 			    	y = math.cos(angleX) * math.cos(angleY) * measuredDis,	--forward
 				    z = math.sin(angleY) * measuredDis	--up
 				}
-				
 				measuredPos = addVectors(
 					pos,
 					multiplyVector(vector.right, sensorRelative.x),
@@ -409,14 +457,19 @@ function onTick()
 			    	z = (measuredPos.z + heightFilter/2) // heightFilter * heightFilter
 			    }
 			    
-			    sN(outStartCh + i-1, filteredPos.x)
-			    sN(outStartCh+1 + i-1, filteredPos.y)
-			    sN(outStartCh+2 + i-1, filteredPos.z)
+			    -- sN(outStartCh + i-1, filteredPos.x)
+			    -- sN(outStartCh+1 + i-1, filteredPos.y)
+			    -- --sN(10, filteredPos.y)
+			    -- sN(outStartCh+2 + i-1, filteredPos.z)
 				--print(i, measuredPos)
+				
+				sN(i, filteredPos.x)
+			    sN(i+1, filteredPos.y)
+			    sN(i+2, filteredPos.z)
 			else
-				sN(outStartCh + i-1, 0)
-			    sN(outStartCh+1 + i-1, 0)
-			    sN(outStartCh+2 + i-1, 0)
+				sN(i, 0)
+			    sN(i+1, 0)
+			    sN(i+2, 0)
 			end
 	    end
 	end
@@ -456,17 +509,15 @@ function onDraw()
 		dT(1, 45, "A-X: " .. angleX)
 		dT(1, 51, "A-Y: " .. angleY)
 		
-		dT(1, 57, h)
-		
 		if filteredPosToDisplay then
 			--dT(1, h-7, string.format("%.0f", filteredPosToDisplay.x), string.format("%.0f", filteredPosToDisplay.y), string.format("%.0f", filteredPosToDisplay.z))
 			dT(1, h-21, filteredPosToDisplay.x)
 			dT(1, h-15, filteredPosToDisplay.y) 
 			dT(1, h-9, filteredPosToDisplay.z)
-			screen.drawCircleF(6, 6, 5)
 		end
 	else
 		dT(1, 1, "run = off")
 	end
 	
 end
+
