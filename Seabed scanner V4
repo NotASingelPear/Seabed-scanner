@@ -1,0 +1,472 @@
+--Recieves new calculated points and draws graphics
+
+--maxPoints = property.getNumber("Maximum datapoints") or 10000
+
+gN = input.getNumber
+sN = output.setNumber
+sC = screen.setColor
+dRF = screen.drawRectF
+f = math.floor
+pi2 = math.pi/2
+cos = math.cos
+sin = math.sin
+set_range = 350
+gridFilter, heightFilter = 10, 1
+
+
+
+
+
+
+P = {}
+record = {}
+
+
+function check(x, y, w, h)
+	return touchX >= x and touchX <= x + (w or 0) and touchY >= y and touchY <= y + (h or 0)
+end
+
+function Round10(n)
+	return f(( n )/10+.5)*10
+end
+
+function color(n)
+	if n < 0 then
+		sC(255,0,0)
+	elseif n <= 1 then	
+		if n < 1/8 then	
+			a={255,255,0}	--yellow
+			b={0,255,0}
+		elseif n<2/8 then
+			a={0,255,0}	
+			b={0,153,76}	--dark green
+		elseif n<3/8 then
+			a={0,153,76}
+			b={0,255,255}	--light blue
+		elseif n<4/8 then
+			a={0,255,255}
+			b={0,76,153}	--blue
+		elseif n<5/8 then
+			a={0,76,153}
+			b={0,0,255}		--dark blue
+		elseif n<6/8 then
+			a={0,0,255}
+			b={76,0,153}	--purple
+		elseif n<7/8 then
+			a={76,0,153}
+			b={255,0,255}	--pink
+		else
+			a={255,0,255}
+			b={80,0,50}		--dark pink
+		end
+		
+		dr=b[1]-a[1]
+		dg=b[2]-a[2]
+		db=b[3]-a[3]
+
+		k=n/(1/8) - f(n/(1/8))
+		sC(
+			a[1] + dr*k, 
+			a[2] + dg*k,
+			a[3] + db*k
+		)
+	else
+		sC(0,0,0)
+	end
+end
+
+
+
+drawCenterY = -50
+pixelRadius = 71
+FOV = math.rad(45)
+cutoffY = 30
+--arcDivisions = 45
+vehiclerelativePosY = drawCenterY + pixelRadius - cutoffY		--Relative to drawCenterY (center of radar display calculation)
+
+focusPoints = {}
+recordKeeper = {}
+for angle = -FOV/2+0.003, FOV/2, 0.01 do
+	for lengthUnit = pixelRadius - cutoffY, pixelRadius, 0.5 do
+		if math.cos(angle) * lengthUnit > pixelRadius - cutoffY then
+			local x = ((math.cos(angle + math.pi/2) * lengthUnit) + 0.5) //1
+			local y = ((drawCenterY + (math.sin(angle + math.pi/2) * lengthUnit)) + 0.5) //1
+			
+			if not recordKeeper[x] then
+				recordKeeper[x] = {}
+			end
+			
+			if recordKeeper[x] and not recordKeeper[x][y] then
+				vesselAngle = math.atan(y - vehiclerelativePosY, x) - math.pi/2
+				vesselDistUnits = math.sqrt(x^2 + (y - vehiclerelativePosY)^2)
+				
+				table.insert(focusPoints, {
+					vesselAngle = vesselAngle,
+					vesselDistUnits = vesselDistUnits,
+					screenPosX = x,
+					screenPosY = y
+				})
+				recordKeeper[x][y] = true
+			end
+		end
+	end
+end
+-- print(#focusPoints)
+recordKeeper = nil
+
+
+function onTick()
+	isPressing = input.getBool(1)
+	touchX = input.getNumber(3)
+	touchY = input.getNumber(4)
+	hi_boundary,lo_boundary = -2, -200--gN(1),gN(2)
+	run = input.getBool(3)
+	draught = 0 --
+	rec_size = 10000
+	
+	pos = {
+	    	x = gN(1),	--east
+    	y = gN(3),	--north
+    	z = gN(2)	--up
+	    }
+    -- Looking towards laser sensor from behind
+	roll = gN(4)	--left
+    pitch = gN(5)	--up
+    azimuth = gN(6)	--left
+	
+	-- test = gN(6)
+	
+	if run then
+		startCh = 9
+		for i = 0, 7 do
+			filteredPos = {
+			    	x = gN(i),
+			    	y = gN(i+1),
+			    	z = gN(i+2)
+			    }
+			if filteredPos.x ~= 0 then
+		    	if not P[filteredPos.x] then
+					P[filteredPos.x] = {}
+				end
+				
+				if P[filteredPos.x][filteredPos.y] and P[filteredPos.x][filteredPos.y].readings < 10 then
+					if P[filteredPos.x][filteredPos.y].depth > draught-0.5 then
+						P[filteredPos.x][filteredPos.y].depth = filteredPos.z
+						P[filteredPos.x][filteredPos.y].readings = 10
+					else
+						P[filteredPos.x][filteredPos.y].readings = P[filteredPos.x][filteredPos.y].readings + 1
+						P[filteredPos.x][filteredPos.y].read_sum = P[filteredPos.x][filteredPos.y].read_sum + filteredPos.z
+						P[filteredPos.x][filteredPos.y].depth = P[filteredPos.x][filteredPos.y].read_sum / P[filteredPos.x][filteredPos.y].readings
+						
+					end
+				else
+					P[filteredPos.x][filteredPos.y] = {depth = filteredPos.z, readings = 1, read_sum = filteredPos.z}
+					if filteredPos.z > draught-0.5 then P[filteredPos.x][filteredPos.y].readings = 10 end
+					table.insert(record, 1, {filteredPos.x, filteredPos.y})
+					if #record > rec_size then
+						P[ record[rec_size+1][1] ][ record[rec_size+1][2] ] = nil
+						record[rec_size+1] = nil
+					end
+					-- print(filteredPos.x, filteredPos.y, filteredPos.z)
+				end
+			end
+		end
+	else
+		P = {}
+		record = {}
+	end
+	
+	--P = {[0] = {[200] = -100}}
+
+end
+
+
+function onDraw()
+	w, h = screen.getWidth(), screen.getHeight()
+
+	if run then
+		for _, focuspoint in pairs(focusPoints) do
+			--screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
+			
+			worldPos = {
+				x = (pos.x + math.cos(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter,
+				y = (pos.y + math.sin(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter
+			}
+			
+			if P[worldPos.x] and P[worldPos.x][worldPos.y] then
+				color(P[worldPos.x][worldPos.y].depth / lo_boundary)
+				--sC(255, 0, 0)
+			else
+				sC(30,30,30)
+			end
+			
+			if isPressing and check(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY) then--check(w + relativePos.x, h - relativePos.y) then
+				sC(255, 100, 0)
+				screen.drawText(2, h-17, string.format("%.0f", focuspoint.screenPosX) .. ", " .. string.format("%.0f", focuspoint.screenPosY))
+				screen.drawText(2, h-10, string.format("%.0f", math.deg(worldPos.x)) .. ", " .. string.format("%.0f", worldPos.y))
+			end	
+			
+			screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
+		end
+		
+		
+		
+		-- coll_warn = false
+		-- for i=0,42 do
+		-- 	dis = (i/42)*set_range
+		-- 	req_x = Round10( pos.x + cos(pi2-azimuth) * dis )
+		-- 	req_y = Round10( pos.y + sin(pi2-azimuth) * dis )
+			
+		-- 	if P[req_x] and P[req_x][req_y] then
+		-- 		depth = P[req_x][req_y].z-zero_ref
+		-- 		if depth > set_depth then
+		-- 			if depth < draught-3 then
+		-- 				sC(0,255,0)
+		-- 			elseif depth > draught-0.5 then
+		-- 				if dis > 30 then
+		-- 					if (dis / speed) < warn_sec then
+		-- 						coll_warn = true
+		-- 					end
+		-- 				end
+		-- 				sC(255,0,0)
+		-- 			else
+		-- 				sC(255,255,0)
+		-- 			end
+		-- 			dRF(11 + i, 47 + 14*depth/set_depth, 1, 1)
+		-- 		end
+		-- 	end
+		-- end
+		sC(255, 255, 255)
+		screen.drawTextBox(1, 1, w, 5, string.format("%.2f", azimuth), 0, 0)
+	end
+end
+
+
+
+
+
+---------------------------------------------------------------------------------------
+
+
+
+
+--Recieves new measurements and calculates positions + througput of composite signal
+
+
+gN,sN,gB=input.getNumber,output.setNumber,input.getBool
+dT=screen.drawText
+pi=math.pi
+co=math.cos
+si=math.sin
+
+tick = 0
+
+
+lowestDetectable, highestDetectable = 10, 2000
+gridFilter, heightFilter = 10, 1
+sensorInputStartCh = 9
+outStartCh = 9
+
+function multiplyVector(vector, multiplier)
+	return {
+		x = vector.x * multiplier,
+		y = vector.y * multiplier,
+		z = vector.z * multiplier
+	}
+end
+
+function addVectors(...)
+	local result = {x = 0, y = 0, z = 0}
+	for _, vector in pairs({...}) do
+		result.x = result.x + vector.x
+		result.y = result.y + vector.y
+		result.z = result.z + vector.z
+	end
+	return result
+end
+
+
+
+
+
+function rotX(x,r)
+    return {x[1],co(r)*x[2]-si(r)*x[3],si(r)*x[2]+co(r)*x[3]}
+end
+function rotY(x,r)
+    return {co(r)*x[1]+si(r)*x[3],x[2],-si(r)*x[1]+co(r)*x[3]}
+end
+function rotZ(x,r)
+    return {co(r)*x[1]-si(r)*x[2],si(r)*x[1]+co(r)*x[2],x[3]}
+end
+
+
+
+function onTick()
+	for i = 1, 32 do
+		output.setNumber(i, input.getNumber(i))
+		output.setBool(i, input.getBool(i))
+	end
+	
+	
+	--
+
+    ex,ey,ez=gN(4),gN(5),gN(6)
+    
+    v1={0,0,1}
+    v1=rotZ(rotY(rotX(v1,ex),ey),ez)
+    hdg=math.atan(v1[1],v1[3])
+    elv=math.atan(v1[2],math.sqrt(v1[1]^2+v1[3]^2))
+    
+    v2={1,0,0}
+    v2=rotZ(rotY(rotX(v2,ex),ey),ez)
+    
+    v3={1,0,0}
+    v3=rotY(rotX(v3,elv),hdg)
+    
+    crs={v2[2]*v3[3]-v2[3]*v3[2],v2[3]*v3[1]-v2[1]*v3[3],v2[1]*v3[2]-v2[2]*v3[1]}    --sin
+	sgn=(v1[1]*crs[1]+v1[2]*crs[2]+v1[3]*crs[3]>=0) and 1 or -1
+	crs=math.sqrt(crs[1]^2+crs[2]^2+crs[3]^2)*sgn
+    dot=v2[1]*v3[1]+v2[2]*v3[2]+v2[3]*v3[3]    --cos
+    rol=math.atan(crs,dot)
+    hdg=(-hdg+pi*2)%(pi*2)
+    
+    --
+    
+    
+    pos = {
+    	x = gN(1),	--east
+    	y = gN(3),	--north
+    	z = gN(2),	--up
+    }
+    roll = rol	--left
+    pitch = elv	--up
+    azimuth = hdg	--left
+    
+    run = gB(3)
+    
+    
+    
+	if run then
+	    vector = {
+			right_noRoll = {
+				x = math.cos(azimuth-math.pi/2),
+				y = math.sin(azimuth-math.pi/2),
+				z = 0
+			},
+			up_noRoll = {
+				x = math.cos(azimuth+math.pi) * math.sin(pitch),
+				y = math.sin(azimuth+math.pi) * math.sin(pitch),
+				z = math.cos(pitch)
+			}
+		}
+			
+		vector.right = {
+			x = vector.up_noRoll.x * math.sin(roll) + vector.right_noRoll.x * math.cos(roll),
+			y = vector.up_noRoll.y * math.sin(roll) + vector.right_noRoll.y * math.cos(roll),
+			z = vector.up_noRoll.z * math.sin(roll) + vector.right_noRoll.z * math.cos(roll)
+		}
+		
+		
+		-- print(vector.up_noRoll)
+		-- print(dist(vector.right))
+		-- print(vector.right)
+		
+		vector.forward = {
+			x = math.cos(azimuth) * math.cos(pitch),
+	    	y = math.sin(azimuth) * math.cos(pitch),
+	    	z = math.sin(pitch)
+	    }
+	    
+		vector.up = {
+			x = vector.up_noRoll.x * math.cos(roll) + vector.right_noRoll.x * math.sin(roll),
+			y = vector.up_noRoll.y * math.cos(roll) + vector.right_noRoll.y * math.sin(roll),
+			z = vector.up_noRoll.z * math.cos(roll) + vector.right_noRoll.z * math.sin(roll)
+		}
+		
+		--SENSOR ORIENTATION: looking at sensor face - Big arrow facing down, small arrow facing left
+	    for i = 1, 2 do
+		    measuredDis = gN(sensorInputStartCh + (i-1))
+		    angleX = gN(sensorInputStartCh + (i-1) + 1) * math.pi/4		--right
+		    angleY = gN(sensorInputStartCh + (i-1) + 2) * math.pi/4		--up
+		    
+		    if true then--measuredDis > lowestDetectable and measuredDis < highestDetectable then
+			    sensorRelative = {
+			    	x = math.sin(angleX) * math.cos(angleY) * measuredDis,	--right
+			    	y = math.cos(angleX) * math.cos(angleY) * measuredDis,	--forward
+				    z = math.sin(angleY) * measuredDis	--up
+				}
+				
+				measuredPos = addVectors(
+					pos,
+					multiplyVector(vector.right, sensorRelative.x),
+					multiplyVector(vector.forward, sensorRelative.y),
+					multiplyVector(vector.up, sensorRelative.z)
+				)
+				
+				filteredPos = {
+			    	x = (measuredPos.x + gridFilter/2) // gridFilter * gridFilter,
+			    	y = (measuredPos.y + gridFilter/2) // gridFilter * gridFilter,
+			    	z = (measuredPos.z + heightFilter/2) // heightFilter * heightFilter
+			    }
+			    
+			    sN(outStartCh + i-1, filteredPos.x)
+			    sN(outStartCh+1 + i-1, filteredPos.y)
+			    sN(outStartCh+2 + i-1, filteredPos.z)
+				--print(i, measuredPos)
+			else
+				sN(outStartCh + i-1, 0)
+			    sN(outStartCh+1 + i-1, 0)
+			    sN(outStartCh+2 + i-1, 0)
+			end
+	    end
+	end
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    tick = tick + 1
+    if tick % 60 == 0 then
+		filteredPosToDisplay = filteredPos
+	end
+    
+    sN(4, roll)
+    sN(5, pitch)
+    sN(6, azimuth)   
+end
+
+
+function onDraw()
+	if run then
+		w, h = screen.getWidth(), screen.getHeight()
+		dT(1, 1, "X: " .. string.format("%.1f", pos.x))
+		dT(1, 7, "Y: " .. string.format("%.1f", pos.y))
+		dT(1, 13, "Z: " .. string.format("%.1f", pos.z))
+		
+		dT(1, 20, "P: " .. string.format("%.1f", pitch))
+		dT(1, 26, "A: " .. string.format("%.1f", azimuth))
+		dT(1, 32, "R: " .. string.format("%.1f", roll))
+		
+		dT(1, 39, "MEAS: " .. measuredDis//1)
+		dT(1, 45, "A-X: " .. angleX)
+		dT(1, 51, "A-Y: " .. angleY)
+		
+		dT(1, 57, h)
+		
+		if filteredPosToDisplay then
+			--dT(1, h-7, string.format("%.0f", filteredPosToDisplay.x), string.format("%.0f", filteredPosToDisplay.y), string.format("%.0f", filteredPosToDisplay.z))
+			dT(1, h-21, filteredPosToDisplay.x)
+			dT(1, h-15, filteredPosToDisplay.y) 
+			dT(1, h-9, filteredPosToDisplay.z)
+			screen.drawCircleF(6, 6, 5)
+		end
+	else
+		dT(1, 1, "run = off")
+	end
+	
+end
