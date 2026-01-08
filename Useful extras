@@ -1,0 +1,50 @@
+clickedOnRadarDispThisTick = false
+		for _, focuspoint in pairs(focusPoints) do
+			--screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
+			
+			worldPos = {
+				x = (pos.x + math.cos(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter,
+				y = (pos.y + math.sin(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter
+			}
+			
+			if P[worldPos.x] and P[worldPos.x][worldPos.y] then
+				color(P[worldPos.x][worldPos.y].depth / lo_boundary)
+				--sC(255, 0, 0)
+			else
+				sC(30,30,30)
+			end
+			
+			screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
+			
+			
+			
+			
+			if isPressing and check(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY) then--check(w + relativePos.x, h - relativePos.y) then
+				clickedOnRadarDispThisTick = true
+				clickedOnRadarDisp = true
+				clickedFocuspoint = focuspoint
+				
+				-- sC(255, 100, 0)
+				-- screen.drawText(2, h-17, string.format("%.0f", focuspoint.screenPosX) .. ", " .. string.format("%.0f", focuspoint.screenPosY))
+				-- screen.drawText(2, h-10, string.format("%.0f", math.deg(worldPos.x)) .. ", " .. string.format("%.0f", worldPos.y))
+				-- screen.drawCircle(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1)
+			end	
+			
+			if isPressing and not clickedOnRadarDispThisTick then
+				clickedOnRadarDisp = false
+			end
+		end
+		
+		if clickedOnRadarDisp then
+				sC(255, 100, 0)
+				
+				worldPos = {
+					x = (pos.x + math.cos(azimuth + clickedFocuspoint.vesselAngle) * clickedFocuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter,
+					y = (pos.y + math.sin(azimuth + clickedFocuspoint.vesselAngle) * clickedFocuspoint.vesselDistUnits * 10)
+				}
+				
+				--screen.drawText(2, h-17, string.format("%.0f", clickedFocuspoint.screenPosX) .. ", " .. string.format("%.0f", clickedFocuspoint.screenPosY))
+				screen.drawTextBox(2, h/2-10, w, 7, string.format("%.0f", worldPos.x), 0, 0)-- .. ", " .. string.format("%.0f", worldPos.y))
+				screen.drawTextBox(2, h/2-4, w, 7, string.format("%.0f", worldPos.y), 0, 0)
+				screen.drawCircle(w/2 + clickedFocuspoint.screenPosX, h/2 - clickedFocuspoint.screenPosY, 1)
+		end
