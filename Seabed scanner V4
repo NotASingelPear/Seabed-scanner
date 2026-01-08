@@ -122,7 +122,7 @@ function onTick()
 	hi_boundary,lo_boundary = -2, -200--gN(1),gN(2)
 	run = input.getBool(3)
 	draught = 0 --
-	rec_size = 10000
+	rec_size = 20000
 	
 	pos = {
 	    	x = gN(1),	--east
@@ -296,7 +296,6 @@ end
 
 
 
-
 ---------------------------------------------------------------------------------------
 
 
@@ -312,7 +311,7 @@ si=math.sin
 tick = 0
 
 
-lowestDetectable, highestDetectable = 10, 2000
+lowestDetectable, highestDetectable = 10, 4000
 gridFilter, heightFilter = 10, 1
 sensorInputStartCh = 9
 outStartCh = 9
@@ -378,7 +377,7 @@ function onTick()
 	crs=math.sqrt(crs[1]^2+crs[2]^2+crs[3]^2)*sgn
     dot=v2[1]*v3[1]+v2[2]*v3[2]+v2[3]*v3[3]    --cos
     rol=math.atan(crs,dot)
-    hdg=(-hdg+pi*2)%(pi*2)
+    hdg=(-hdg+pi/2)%(pi*2)
     
     --
     
@@ -410,12 +409,13 @@ function onTick()
 			}
 		}
 			
+
 		vector.right = {
 			x = vector.up_noRoll.x * math.sin(roll) + vector.right_noRoll.x * math.cos(roll),
 			y = vector.up_noRoll.y * math.sin(roll) + vector.right_noRoll.y * math.cos(roll),
-			z = vector.up_noRoll.z * math.sin(roll) + vector.right_noRoll.z * math.cos(roll)
+			z = vector.up_noRoll.z * math.sin(-roll) + vector.right_noRoll.z * math.cos(-roll)
 		}
-		
+
 		
 		-- print(vector.up_noRoll)
 		-- print(dist(vector.right))
@@ -509,15 +509,240 @@ function onDraw()
 		dT(1, 45, "A-X: " .. angleX)
 		dT(1, 51, "A-Y: " .. angleY)
 		
-		if filteredPosToDisplay then
-			--dT(1, h-7, string.format("%.0f", filteredPosToDisplay.x), string.format("%.0f", filteredPosToDisplay.y), string.format("%.0f", filteredPosToDisplay.z))
-			dT(1, h-21, filteredPosToDisplay.x)
-			dT(1, h-15, filteredPosToDisplay.y) 
-			dT(1, h-9, filteredPosToDisplay.z)
-		end
+		dT(1, 60, string.format("%.3f", vector.right.x))
+		dT(1, 66, string.format("%.3f", vector.right.y))
+		dT(1, 72, string.format("%.3f", vector.right.z))
+		
+		-- if filteredPosToDisplay then
+		-- 	--dT(1, h-7, string.format("%.0f", filteredPosToDisplay.x), string.format("%.0f", filteredPosToDisplay.y), string.format("%.0f", filteredPosToDisplay.z))
+		-- 	dT(1, h-21, filteredPosToDisplay.x)
+		-- 	dT(1, h-15, filteredPosToDisplay.y) 
+		-- 	dT(1, h-9, filteredPosToDisplay.z)
+		-- end
 	else
 		dT(1, 1, "run = off")
 	end
 	
 end
 
+
+----------------------------------------------------------------------
+
+-- Sets sensors scan angles
+
+
+
+nSensors = 8
+cycleTicks = 150
+tick = 0
+
+rows = 45
+columns = 30
+function getLaserDirection(n)
+	local x = (rows * columns * n) % columns / columns
+	local y = ((rows * columns * n) // columns / rows)^3
+	return x * 2 - 1, -(0.03 + y*0.97)
+end
+
+FOV = math.min(90, math.max(20, property.getNumber("Field of view") or 90) ) / 90
+brt = property.getNumber("Brightness") or 255
+scanLines = 7
+cycleTime = 60 // scanLines * scanLines
+displayTime = 60 * 2
+firstRun = true
+--tick = 0
+
+setupMirroring = {
+	{x = 0.6, y = -0.2, size = 0.7},
+	{x = 0.2, y = -0.2, size = 0.4},
+	{x = 0.25, y = -0.4, size = 0.5},
+	{x = 0.3, y = -0.6, size = 0.6}
+}
+
+aimBoxes = {}
+for index, rectangle in ipairs(setupMirroring) do
+	for i = -1, 1, 2 do
+		local targetIndex = (index + (i+1)/2 * #setupMirroring) // 1
+		aimBoxes[targetIndex] = {
+			startX = (rectangle.x + rectangle.size/2) * i,
+			rangeX = rectangle.size * -i,
+			startY = rectangle.y + rectangle.size/2,
+			rangeY = -rectangle.size
+		}
+	end
+end
+
+
+function clamp(value, min, max)
+	return math.min(max, (math.max(min, value)))
+end
+	
+function onTick()
+	
+	run = input.getBool(3)
+	roll = input.getNumber(4)-- * (-math.pi*2)	-- CW is positive
+	
+	if (property.getBool("Display start-up screen") or false) and run and tick < ((startTick or 0) + displayTime) then
+		showGraphics = true
+	else
+		showGraphics = false
+		if firstRun then
+			startTick = tick
+		end
+	end
+	
+	if run then
+		if firstRun and showGraphics then
+			sensors = 0
+			inStartCh = 9
+			for sensorID, aimBox in pairs(aimBoxes) do
+				aimBox.detected = input.getNumber(inStartCh + (sensorID-1) * 3) ~= 0
+				sensors = sensors + (aimBox.detected and 1 or 0)
+			end
+		end
+		
+		
+		xStep = (tick%cycleTime // scanLines) / scanLines
+		yStep = (tick % scanLines / scanLines) / (1-(1/scanLines))
+		
+		
+		outStartCh = 9
+    	for i = 1, nSensors do
+	    	local x, y = getLaserDirection((tick % cycleTicks / cycleTicks + i/nSensors) % 1)
+	    	output.setNumber(outStartCh + (i-1) * 3 + 1, x)
+	    	output.setNumber(outStartCh + (i-1) * 3 + 2, y)
+    	end	
+	
+		-- for sensorID, aimBox in pairs(aimBoxes) do
+		-- 	aimXNoRoll = aimBox.startX + aimBox.rangeX * xStep
+		-- 	aimYNoRoll = aimBox.startY + aimBox.rangeY * yStep
+		-- 	length = math.sqrt(aimXNoRoll^2 + aimYNoRoll^2)
+		-- 	angleNoRoll = math.atan(aimYNoRoll, aimXNoRoll)
+		-- 	aimX = clamp(math.cos(angleNoRoll + roll) * length * FOV, -1, 1)
+		-- 	aimY = clamp(math.sin(angleNoRoll + roll) * length * FOV, -1, 1)
+			
+			
+			--output.setNumber(outStartCh + (sensorID-1)*3 + 1, input.getNumber(1))--aimX)
+			--output.setNumber(outStartCh + (sensorID-1)*3 + 2, input.getNumber(2))--aimY)
+			
+			--output.setNumber(outStartCh + (sensorID-1)*3 + 1, math.random(-70, 70)/100)--aimX)
+			
+			--output.setNumber(outStartCh + (sensorID-1)*3 + 2, math.random(-40, 0)/100)--aimY)
+			
+			--output.setNumber(outStartCh + (sensorID-1)*3 + 2, math.random(-70, -10)/100)
+			
+			
+			
+			
+			
+			
+		-- end
+		
+		firstRun = false
+	end
+	
+	output.setBool(3, run and not showGraphics)
+	tick = tick + 1
+end
+
+
+
+sC = screen.setColor
+dTB = screen.drawTextBox
+
+function onDraw()
+	w, h = screen.getWidth()/2, screen.getHeight()/2
+	len = math.min(w, h)
+	
+	if showGraphics then
+		sC(255, 255, 255)
+		dTB(
+			w - len, 
+			h - len + 3, 
+			len * 2,
+			12,
+			"VERSION 1.0\n-------------------",
+			0, 0)
+		
+		sC(0, 255, 0)
+		dTB(
+			w - len, 
+			h - len + 19, 
+			len * 2,
+			6,
+			"FOV:   " .. string.format("%.0f", FOV*90) .. "'",
+			0, 0)
+		
+		dTB(
+			w - len, 
+			h - len + 26, 
+			len * 2,
+			6,
+			"SENSORS: " .. string.format("%.0f", sensors or 0),
+			0, 0)
+		
+		
+		for _, aimBox in ipairs(aimBoxes) do
+			if aimBox.detected then
+				sC(0, 255, 0,  math.abs(10/aimBox.rangeX))
+				screen.drawRectF(
+					w + aimBox.startX * len,
+					h - aimBox.startY * len,
+					aimBox.rangeX * len, 
+					-aimBox.rangeY * len
+					)
+			end
+		end
+		
+		
+		colors = #aimBoxes
+		colorNo = 0
+		for sensorID, aimBox in ipairs(aimBoxes) do
+			startX = aimBox.startX
+			startY = aimBox.startY
+			rangeX = aimBox.rangeX
+			rangeY = aimBox.rangeY
+			
+			if aimBox.detected then
+				sC(255 / colors * colorNo, 255 - 255 / colors * colorNo, 0)
+			else
+				sC(255, 0, 0)
+				screen.drawLine(
+				w + startX * len,
+				h - startY * len,
+				w + (startX + rangeX) * len,
+				h - (startY + rangeY) * len
+				)
+				screen.drawLine(
+				w + startX * len,
+				h - (startY + rangeY) * len,
+				w + (startX + rangeX) * len,
+				h - startY * len
+				)
+			end
+			
+			
+			screen.drawRectF(
+				w + (startX + rangeX/2) * len ,
+				h - (startY + rangeY/2) * len,
+				1, -1
+				)
+			screen.drawRect(
+				w + startX * len,
+				h - startY * len,
+				rangeX * len, 
+				-rangeY * len
+				)
+			screen.drawText(
+				w + (startX + (sensorID <= 4 and 0 or rangeX)) * len + 1,
+				h - startY * len + 1,
+				sensorID
+				)
+			colorNo = colorNo + 1
+		end
+		
+		sC(0, 0, 0, 255 - brt*255)
+		screen.drawRectF(1, 1, w*2, h*2)
+	end	
+
+end
