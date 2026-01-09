@@ -1,3 +1,7 @@
+----------------------------------------
+Mark point on radar display
+
+
 clickedOnRadarDispThisTick = false
 		for _, focuspoint in pairs(focusPoints) do
 			--screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
@@ -48,3 +52,332 @@ clickedOnRadarDispThisTick = false
 				screen.drawTextBox(2, h/2-4, w, 7, string.format("%.0f", worldPos.y), 0, 0)
 				screen.drawCircle(w/2 + clickedFocuspoint.screenPosX, h/2 - clickedFocuspoint.screenPosY, 1)
 		end
+
+
+
+----------------------------------------------------------
+WIP new radar display
+
+--Recieves new calculated points and draws graphics
+
+--maxPoints = property.getNumber("Maximum datapoints") or 10000
+
+gN = input.getNumber
+sN = output.setNumber
+sC = screen.setColor
+dRF = screen.drawRectF
+f = math.floor
+pi2 = math.pi/2
+cos = math.cos
+sin = math.sin
+set_range = 350
+gridFilter, heightFilter = 10, 1
+prevPos = {x = 0, y = 0}
+tick = 0
+
+refreshRate = 1 --per seconds
+
+
+
+P = {}
+record = {}
+
+
+function check(x, y, w, h)
+	return touchX >= x and touchX <= x + (w or 0) and touchY >= y and touchY <= y + (h or 0)
+end
+
+function Round10(n)
+	return f(( n )/10+.5)*10
+end
+
+function color(n)
+	if n < 0 then
+		sC(255,0,0)
+	elseif n <= 1 then	
+		if n < 1/8 then	
+			a={255,255,0}	--yellow
+			b={0,255,0}
+		elseif n<2/8 then
+			a={0,255,0}	
+			b={0,153,76}	--dark green
+		elseif n<3/8 then
+			a={0,153,76}
+			b={0,255,255}	--light blue
+		elseif n<4/8 then
+			a={0,255,255}
+			b={0,76,153}	--blue
+		elseif n<5/8 then
+			a={0,76,153}
+			b={0,0,255}		--dark blue
+		elseif n<6/8 then
+			a={0,0,255}
+			b={76,0,153}	--purple
+		elseif n<7/8 then
+			a={76,0,153}
+			b={255,0,255}	--pink
+		else
+			a={255,0,255}
+			b={80,0,50}		--dark pink
+		end
+		
+		dr=b[1]-a[1]
+		dg=b[2]-a[2]
+		db=b[3]-a[3]
+
+		k=n/(1/8) - f(n/(1/8))
+		sC(
+			a[1] + dr*k, 
+			a[2] + dg*k,
+			a[3] + db*k
+		)
+	else
+		sC(0,0,0)
+	end
+end
+
+
+
+drawCenterY = -50
+pixelRadius = 71
+FOV = math.rad(45)
+cutoffY = 30
+vehiclerelativePosY = drawCenterY + pixelRadius - cutoffY		--Relative to drawCenterY (center of radar display calculation)
+
+focusPoints = {}
+recordKeeper = {}
+for angle = -FOV/2+0.003, FOV/2, 0.01 do
+	for lengthUnit = pixelRadius - cutoffY, pixelRadius, 0.5 do
+		if math.cos(angle) * lengthUnit > pixelRadius - cutoffY then
+			local x = ((math.cos(angle + math.pi/2) * lengthUnit) + 0.5) //1
+			local y = ((drawCenterY + (math.sin(angle + math.pi/2) * lengthUnit)) + 0.5) //1
+			
+			if not recordKeeper[x] then
+				recordKeeper[x] = {}
+			end
+			
+			if recordKeeper[x] and not recordKeeper[x][y] then
+				vesselAngle = math.atan(y - vehiclerelativePosY, x) - math.pi/2
+				vesselDistUnits = math.sqrt(x^2 + (y - vehiclerelativePosY)^2)
+				
+				table.insert(focusPoints, {
+					vesselAngle = vesselAngle,
+					vesselDistUnits = vesselDistUnits,
+					relScreenPosX = x,
+					relScreenPosY = y,
+					depth = 0
+				})
+				recordKeeper[x][y] = true
+			end
+		end
+	end
+end
+recordKeeper = nil
+
+function findAvgDepth(x, y)
+	local surroundingPoints = {}
+	
+	local i = 1
+	local maxIterations = 10
+	local gf = gridFilter
+	while #surroundingPoints < 3 and i <= maxIterations do
+		for y1 = y - i * gf, y + i * gf, i*2 * gf do
+			for x1 = x - (i-1) * gf, x + (i-1) * gf, gf do
+				if P[x1] and P[x1][y1] then
+					table.insert(surroundingPoints, P[x1][y1].depth)
+					print(x1, y1, "Found")
+				else
+					print(x1, y1, #surroundingPoints)
+				end
+			end
+		end
+		
+		for x1 = x - i * gf, x + i * gf, i*2 * gf do
+			for y1 = y - i * gf, y + i * gf, gf do
+				if P[x1] and P[x1][y1] then
+					table.insert(surroundingPoints, P[x1][y1].depth)
+					print(x1, y1, "Found")
+				else
+					print(x1, y1, #surroundingPoints)
+				end
+			end
+		end
+		
+		
+		i = i + 1
+	end
+	
+	if #surroundingPoints ~= 0 then
+		local totalDepth = 0
+		for _, depth in ipairs(surroundingPoints) do
+			totalDepth = totalDepth + depth
+		end
+		local avg = totalDepth / #surroundingPoints
+		return avg
+	else
+		return false
+	end
+end
+
+P = {
+	[200] = {
+		[0] = {depth = -10},
+		[200] = {depth = -20}
+	},
+	[250] = {
+		[-80] = {depth = - 100}
+	}
+}
+
+--print(findAvgDepth(200, 10))
+
+-- findAvgDepth(32, 32)
+
+
+
+function onTick()
+	isPressing = input.getBool(1)
+	touchX = input.getNumber(7)
+	touchY = input.getNumber(8)
+	hi_boundary,lo_boundary = -2, -200--gN(1),gN(2)
+	run = input.getBool(3) and tick > 1
+	draught = 0 --
+	rec_size = 20000
+	
+	pos = {
+	    x = gN(1),	--east
+    	y = gN(3),	--north
+    	z = gN(2)	--up
+	}
+    -- Looking towards laser sensor from behind
+	roll = gN(4)	--left
+    pitch = gN(5)	--up
+    azimuth = gN(6)	--left
+	
+	
+	velocity = math.sqrt((pos.x - prevPos.x)^2 + (pos.y - prevPos.y)^2) * 60		--m/s
+	
+	if run or tick == 1 then
+		for i = 9, 32, 3 do
+			filteredPos = {
+
+			    	x = gN(i)//1,
+			    	y = gN(i+1)//1,
+			    	z = gN(i+2)//1
+			    }
+			if filteredPos.x ~= 0 then
+		    	if not P[filteredPos.x] then
+					P[filteredPos.x] = {}
+				end
+				
+				if P[filteredPos.x][filteredPos.y] and P[filteredPos.x][filteredPos.y].readings < 10 then
+					if P[filteredPos.x][filteredPos.y].depth > draught-0.5 then
+						P[filteredPos.x][filteredPos.y].depth = filteredPos.z
+						P[filteredPos.x][filteredPos.y].readings = 10
+					else
+						P[filteredPos.x][filteredPos.y].readings = P[filteredPos.x][filteredPos.y].readings + 1
+						P[filteredPos.x][filteredPos.y].read_sum = P[filteredPos.x][filteredPos.y].read_sum + filteredPos.z
+						P[filteredPos.x][filteredPos.y].depth = P[filteredPos.x][filteredPos.y].read_sum / P[filteredPos.x][filteredPos.y].readings
+						
+					end
+				else
+					P[filteredPos.x][filteredPos.y] = {depth = filteredPos.z, readings = 1, read_sum = filteredPos.z}
+					if filteredPos.z > draught-0.5 then P[filteredPos.x][filteredPos.y].readings = 10 end
+					table.insert(record, 1, {filteredPos.x, filteredPos.y})
+					if #record > rec_size then
+						P[ record[rec_size+1][1] ][ record[rec_size+1][2] ] = nil
+						record[rec_size+1] = nil
+					end
+				end
+			end
+		end
+		
+		
+		iter = (tick - startTick) % (1/refreshRate * 60) + 1
+		for i = math.floor(#focusPoints * (iter/60*59)/60), math.ceil(#focusPoints * ((iter+1)/60*59)/60) do
+			worldPos = {
+				x = (nextVesselPos.x + math.cos(azimuth + focusPoints[i].vesselAngle) * focusPoints[i].vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter,
+				y = (nextVesselPos.y + math.sin(azimuth + focusPoints[i].vesselAngle) * focusPoints[i].vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter
+			}
+			
+			
+			depth = 0
+			depthFound = false
+			if P[worldPos.x] and P[worldPos.x][worldPos.y] then
+				depth = P[worldPos.x][worldPos.y].depth
+				depthFound = true
+			else
+				--avg = findAvgDepth(worldPos.x, worldPos.y)
+				--print(avg)
+				if avg then
+					depth = -100
+					depthFound = true
+				end
+				
+			end
+			table.insert(drawPointsNext, {
+				depthFound = depthFound,
+				depth = depth,
+				relx = focusPoints[i].relScreenPosX,
+				rely = focusPoints[i].relScreenPosY
+				})
+		end	
+
+		
+		
+		if iter == 1 then
+			nextVesselPos = {
+				x = pos.x + velocity * math.cos(azimuth),
+				y = pos.y + velocity * math.sin(azimuth)
+			}
+			
+			drawPoints = {}
+			for _, point in ipairs(drawPointsNext) do
+				table.insert(drawPoints, {
+					depthFound = point.depthFound,
+					depth = point.depth,
+					relx = point.relx,
+					rely = point.rely
+					})
+			end
+			drawPointsNext = {}
+		end
+		
+	else
+		--P = {}
+		record = {}
+		nextVesselPos = {
+				x = pos.x + velocity * math.cos(azimuth),
+				y = pos.y + velocity * math.sin(azimuth)
+			}
+		startTick = tick
+		drawPointsNext = {}
+		drawPoints = {}
+		iter = 0
+	end
+	
+	
+	tick = tick + 1
+end
+
+
+function onDraw()
+	w, h = screen.getWidth(), screen.getHeight()
+	
+	
+	if run then
+		for _, point in ipairs(drawPoints) do
+			if point.depthFound then
+				color(point.depth / lo_boundary)
+			else
+				sC(30, 30, 30, 30)
+			end
+			screen.drawRectF(w/2 + point.relx, h/2 - point.rely, 1, 1)
+		end
+	end
+	
+end
+
+
+
+
