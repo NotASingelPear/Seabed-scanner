@@ -549,17 +549,31 @@ end
 
 
 
-nSensors = 8
+
+nSensorsForward = 6
+nSensorsDownward = 2
 cycleTicks = 150
 tick = 0
 
 rows = 45
 columns = 30
-function getLaserDirection(n)
+function getLaserDirectionForward(n)
 	local x = (rows * columns * n) % columns / columns
 	local y = ((rows * columns * n) // columns / rows)^3
-	return x * 2 - 1, -(0.03 + y*0.97)
+	return x * 2 - 1, -(-0.05 + y*1.05)
 end
+
+rows = 31
+columns = 30
+function getLaserDirectionDownward(n)
+	local x = (rows * columns * n) % columns / columns
+	local y = ((rows * columns * n) // columns / rows)
+	return (x * 2 - 1) * 0.8, y*1.1 - 0.1
+end
+
+
+
+
 
 FOV = math.min(90, math.max(20, property.getNumber("Field of view") or 90) ) / 90
 brt = property.getNumber("Brightness") or 255
@@ -624,8 +638,15 @@ function onTick()
 		
 		
 		outStartCh = 9
-    	for i = 1, nSensors do
-	    	local x, y = getLaserDirection((tick % cycleTicks / cycleTicks + i/nSensors) % 1)
+    	for i = 1, nSensorsForward do
+	    	local x, y = getLaserDirectionForward((tick % cycleTicks / cycleTicks + i/nSensorsForward) % 1)
+	    	output.setNumber(outStartCh + (i-1) * 3 + 1, x)
+	    	output.setNumber(outStartCh + (i-1) * 3 + 2, y)
+    	end	
+    	
+    	outStartCh = 27
+    	for i = 1, nSensorsDownward do
+	    	local x, y = getLaserDirectionDownward((tick % cycleTicks / cycleTicks + i/nSensorsDownward) % 1)
 	    	output.setNumber(outStartCh + (i-1) * 3 + 1, x)
 	    	output.setNumber(outStartCh + (i-1) * 3 + 2, y)
     	end	
@@ -667,105 +688,107 @@ end
 sC = screen.setColor
 dTB = screen.drawTextBox
 
-function onDraw()
-	w, h = screen.getWidth()/2, screen.getHeight()/2
-	len = math.min(w, h)
+-- function onDraw()
+-- 	w, h = screen.getWidth()/2, screen.getHeight()/2
+-- 	len = math.min(w, h)
 	
-	if showGraphics then
-		sC(255, 255, 255)
-		dTB(
-			w - len, 
-			h - len + 3, 
-			len * 2,
-			12,
-			"VERSION 1.0\n-------------------",
-			0, 0)
+-- 	if showGraphics then
+-- 		sC(255, 255, 255)
+-- 		dTB(
+-- 			w - len, 
+-- 			h - len + 3, 
+-- 			len * 2,
+-- 			12,
+-- 			"VERSION 1.0\n-------------------",
+-- 			0, 0)
 		
-		sC(0, 255, 0)
-		dTB(
-			w - len, 
-			h - len + 19, 
-			len * 2,
-			6,
-			"FOV:   " .. string.format("%.0f", FOV*90) .. "'",
-			0, 0)
+-- 		sC(0, 255, 0)
+-- 		dTB(
+-- 			w - len, 
+-- 			h - len + 19, 
+-- 			len * 2,
+-- 			6,
+-- 			"FOV:   " .. string.format("%.0f", FOV*90) .. "'",
+-- 			0, 0)
 		
-		dTB(
-			w - len, 
-			h - len + 26, 
-			len * 2,
-			6,
-			"SENSORS: " .. string.format("%.0f", sensors or 0),
-			0, 0)
-		
-		
-		for _, aimBox in ipairs(aimBoxes) do
-			if aimBox.detected then
-				sC(0, 255, 0,  math.abs(10/aimBox.rangeX))
-				screen.drawRectF(
-					w + aimBox.startX * len,
-					h - aimBox.startY * len,
-					aimBox.rangeX * len, 
-					-aimBox.rangeY * len
-					)
-			end
-		end
+-- 		dTB(
+-- 			w - len, 
+-- 			h - len + 26, 
+-- 			len * 2,
+-- 			6,
+-- 			"SENSORS: " .. string.format("%.0f", sensors or 0),
+-- 			0, 0)
 		
 		
-		colors = #aimBoxes
-		colorNo = 0
-		for sensorID, aimBox in ipairs(aimBoxes) do
-			startX = aimBox.startX
-			startY = aimBox.startY
-			rangeX = aimBox.rangeX
-			rangeY = aimBox.rangeY
+-- 		for _, aimBox in ipairs(aimBoxes) do
+-- 			if aimBox.detected then
+-- 				sC(0, 255, 0,  math.abs(10/aimBox.rangeX))
+-- 				screen.drawRectF(
+-- 					w + aimBox.startX * len,
+-- 					h - aimBox.startY * len,
+-- 					aimBox.rangeX * len, 
+-- 					-aimBox.rangeY * len
+-- 					)
+-- 			end
+-- 		end
+		
+		
+-- 		colors = #aimBoxes
+-- 		colorNo = 0
+-- 		for sensorID, aimBox in ipairs(aimBoxes) do
+-- 			startX = aimBox.startX
+-- 			startY = aimBox.startY
+-- 			rangeX = aimBox.rangeX
+-- 			rangeY = aimBox.rangeY
 			
-			if aimBox.detected then
-				sC(255 / colors * colorNo, 255 - 255 / colors * colorNo, 0)
-			else
-				sC(255, 0, 0)
-				screen.drawLine(
-				w + startX * len,
-				h - startY * len,
-				w + (startX + rangeX) * len,
-				h - (startY + rangeY) * len
-				)
-				screen.drawLine(
-				w + startX * len,
-				h - (startY + rangeY) * len,
-				w + (startX + rangeX) * len,
-				h - startY * len
-				)
-			end
+-- 			if aimBox.detected then
+-- 				sC(255 / colors * colorNo, 255 - 255 / colors * colorNo, 0)
+-- 			else
+-- 				sC(255, 0, 0)
+-- 				screen.drawLine(
+-- 				w + startX * len,
+-- 				h - startY * len,
+-- 				w + (startX + rangeX) * len,
+-- 				h - (startY + rangeY) * len
+-- 				)
+-- 				screen.drawLine(
+-- 				w + startX * len,
+-- 				h - (startY + rangeY) * len,
+-- 				w + (startX + rangeX) * len,
+-- 				h - startY * len
+-- 				)
+-- 			end
 			
 			
-			screen.drawRectF(
-				w + (startX + rangeX/2) * len ,
-				h - (startY + rangeY/2) * len,
-				1, -1
-				)
-			screen.drawRect(
-				w + startX * len,
-				h - startY * len,
-				rangeX * len, 
-				-rangeY * len
-				)
-			screen.drawText(
-				w + (startX + (sensorID <= 4 and 0 or rangeX)) * len + 1,
-				h - startY * len + 1,
-				sensorID
-				)
-			colorNo = colorNo + 1
-		end
+-- 			screen.drawRectF(
+-- 				w + (startX + rangeX/2) * len ,
+-- 				h - (startY + rangeY/2) * len,
+-- 				1, -1
+-- 				)
+-- 			screen.drawRect(
+-- 				w + startX * len,
+-- 				h - startY * len,
+-- 				rangeX * len, 
+-- 				-rangeY * len
+-- 				)
+-- 			screen.drawText(
+-- 				w + (startX + (sensorID <= 4 and 0 or rangeX)) * len + 1,
+-- 				h - startY * len + 1,
+-- 				sensorID
+-- 				)
+-- 			colorNo = colorNo + 1
+-- 		end
 		
-		sC(0, 0, 0, 255 - brt*255)
-		screen.drawRectF(1, 1, w*2, h*2)
+-- 		sC(0, 0, 0, 255 - brt*255)
+-- 		screen.drawRectF(1, 1, w*2, h*2)
+-- 	end	
 
+-- end
 
 
 
 ------------------------------------------------------
-
+--Drawing of symbols and collision warning +++
 
 
 gN = input.getNumber
