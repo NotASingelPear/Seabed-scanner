@@ -1,7 +1,5 @@
 --Recieves new calculated points and draws graphics
 
---maxPoints = property.getNumber("Maximum datapoints") or 10000
-
 gN = input.getNumber
 sN = output.setNumber
 sC = screen.setColor
@@ -207,8 +205,8 @@ function onTick()
 					P[filteredPos.x] = {}
 				end
 				
-				if P[filteredPos.x][filteredPos.y] and P[filteredPos.x][filteredPos.y].readings < 10 then
-					if P[filteredPos.x][filteredPos.y].depth > draught*1.3 then
+				if P[filteredPos.x][filteredPos.y] and (P[filteredPos.x][filteredPos.y].readings < 10 or filteredPos.z > draught*1.3) then
+					if filteredPos.z > draught*1.3 then
 						P[filteredPos.x][filteredPos.y].depth = filteredPos.z
 						P[filteredPos.x][filteredPos.y].readings = 10
 					else
@@ -299,7 +297,7 @@ function onDraw()
 	if run then
 		for _, point in ipairs(drawPoints) do
 			if point.depthFound then
-				color(((draught*1.3 + point.depth) - (hi_boundary)) / (lo_boundary - hi_boundary))
+				color(((-draught*1.3 + point.depth) - (hi_boundary)) / (lo_boundary - hi_boundary))
 
 			else
 				sC(30, 30, 30)
@@ -308,6 +306,7 @@ function onDraw()
 		end
 	end
 end
+
 
 
 
