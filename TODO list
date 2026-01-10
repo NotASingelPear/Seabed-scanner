@@ -1,5 +1,12 @@
-- Radar display overlaps multiple points
+EFATURES
 - User interface
 - submarine mode
 - Make easy to install package
 - Point 2 sensors downward to scan better at deep waters
+
+BUGS
+- Red depths are overwritten constantly
+- Radar display overlaps multiple points
+
+
+
