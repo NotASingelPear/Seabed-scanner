@@ -1,12 +1,14 @@
 EFATURES
-- User interface
+- DONE User interface
 - submarine mode
 - Make easy to install package
 - Point 2 sensors downward to scan better at deep waters
+- Ability to click on a point and show depth ++
 
 BUGS
-- Red depths are overwritten constantly
-- Radar display overlaps multiple points
+- DONE ? Red depths are overwritten constantly
+- OK Radar display overlaps multiple points
+- points just under surface(bridge) is not displayed as red although higher than draught depth.
 
 
 
