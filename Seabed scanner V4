@@ -767,9 +767,6 @@ function onDraw()
 
 ------------------------------------------------------
 
--- Drawing of symbols, collision warning and handles touch
-
-
 
 gN = input.getNumber
 sN = output.setNumber
@@ -1113,7 +1110,7 @@ function onTick()
     showOptionsPage = showOptionsPagePressed and not isPressing
     showOptionsPagePressed = isPressing and check(2, 2, 7, 7)
     
-    coll_warn_dur = 120
+    coll_warn_dur = 60
     if coll_warn then
     	coll_warn_startTick = tick
     end
@@ -1259,13 +1256,6 @@ function onDraw()
     sC(0, 0, 0, (1-brt) * 255)
     dRF(1, 1, w, h)
 end
-
-
-
-
-
-
-
 
 
 
