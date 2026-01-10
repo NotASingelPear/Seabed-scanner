@@ -767,6 +767,7 @@ function onDraw()
 ------------------------------------------------------
 
 
+
 gN = input.getNumber
 sN = output.setNumber
 gB = input.getBool
@@ -795,7 +796,7 @@ coll_warn_startTick = -math.huge
 
 refreshRate = property.getNumber("Refresh rate") --per seconds
 useAvgCalc = property.getBool("Fill empty pixels with average values")
-draught = property.getNumber("Draught (M)")
+draught = property.getNumber("Draught (M)") or 0 *-1
 coll_warn_secs = property.getNumber("Warning sensitivity") * 20
 brt = property.getNumber("Brightness") or 0
 
@@ -1405,4 +1406,3 @@ function onDraw()
 
 	
 end
-
