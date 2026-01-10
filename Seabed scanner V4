@@ -1,7 +1,5 @@
 --Recieves new calculated points and draws graphics
 
---Recieves new calculated points and draws graphics
-
 --maxPoints = property.getNumber("Maximum datapoints") or 10000
 
 gN = input.getNumber
@@ -19,7 +17,7 @@ tick = 0
 
 refreshRate = property.getNumber("Refresh rate")--per seconds
 useAvgCalc = property.getBool("Fill empty pixels with average values")
-draught = property.getNumber("Draught (M)") or 0
+draught = property.getNumber("Draught (M)") or 0 *-1
 
 P = {}
 record = {}
@@ -78,7 +76,7 @@ end
 
 drawCenterY = -50
 pixelRadius = 71
-FOV = math.rad(45)
+FOV = math.rad(43.5)
 cutoffY = 30
 vehiclerelativePosY = drawCenterY + pixelRadius - cutoffY		--Relative to drawCenterY (center of radar display calculation)
 
@@ -173,16 +171,15 @@ end
 --}
 
 
-
 function onTick()
 	isPressing = input.getBool(1)
-	touchX = gN(7)
-	touchY = gN(8)
-	hi_boundary, lo_boundary = -0, -200--gN(7),gN(8)
+	--touchX = gN(7)
+	--touchY = gN(8)
+	hi_boundary, lo_boundary = gN(7),gN(8)
 	run = input.getBool(3) and tick > 1	--testing
 	draught = 0 --
 	rec_size = 10000
-	displayRange = 300--gN(2)
+	displayRange = gN(2)
 	
 	--print((-50 - hi_boundary) / (lo_boundary - hi_boundary))
 	
@@ -211,7 +208,7 @@ function onTick()
 				end
 				
 				if P[filteredPos.x][filteredPos.y] and P[filteredPos.x][filteredPos.y].readings < 10 then
-					if P[filteredPos.x][filteredPos.y].depth > draught-0.5 then
+					if P[filteredPos.x][filteredPos.y].depth > draught*1.3 then
 						P[filteredPos.x][filteredPos.y].depth = filteredPos.z
 						P[filteredPos.x][filteredPos.y].readings = 10
 					else
@@ -220,9 +217,9 @@ function onTick()
 						P[filteredPos.x][filteredPos.y].depth = P[filteredPos.x][filteredPos.y].read_sum / P[filteredPos.x][filteredPos.y].readings
 						
 					end
-				else
+				elseif not P[filteredPos.x][filteredPos.y] then
 					P[filteredPos.x][filteredPos.y] = {depth = filteredPos.z, readings = 1, read_sum = filteredPos.z}
-					if filteredPos.z > draught-0.5 then P[filteredPos.x][filteredPos.y].readings = 10 end
+					if filteredPos.z > draught*1.3 then P[filteredPos.x][filteredPos.y].readings = 10 end
 					table.insert(record, 1, {filteredPos.x, filteredPos.y})
 					if #record > rec_size then
 						P[ record[rec_size+1][1] ][ record[rec_size+1][2] ] = nil
@@ -295,7 +292,6 @@ function onTick()
 	tick = tick + 1
 end
 
-
 function onDraw()
 	w, h = screen.getWidth(), screen.getHeight()
 	
@@ -303,7 +299,7 @@ function onDraw()
 	if run then
 		for _, point in ipairs(drawPoints) do
 			if point.depthFound then
-				color( -((draught*1.3 - point.depth - hi_boundary) / (lo_boundary - hi_boundary)) )
+				color(((draught*1.3 + point.depth) - (hi_boundary)) / (lo_boundary - hi_boundary))
 
 			else
 				sC(30, 30, 30)
@@ -312,6 +308,7 @@ function onDraw()
 		end
 	end
 end
+
 
 
 
