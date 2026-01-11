@@ -845,7 +845,7 @@ refreshRate = property.getNumber("Refresh rate") --per seconds
 useAvgCalc = property.getBool("Fill empty pixels with average values")
 draught = property.getNumber("Draught (M)")
 coll_warn_secs = property.getNumber("Warning sensitivity") * 10
-brt = property.getNumber("Brightness") or 0
+brt = property.getNumber("Brightness") or 1
 
 P = {}
 record = {}
@@ -1439,6 +1439,7 @@ w, h = 0, 0
 
 collisionWarnMuted = not property.getBool("Collision warning")
 gridFilter = property.getNumber("Gridsize")
+brt = property.getNumber("Brightness") or 1
 
 gridSizes = {1, 2, 5, 10, 20}
 currentGridTableI = 4
@@ -1462,8 +1463,6 @@ function onTick()
 	hasPressed = isPressing
 	isPressing = gB(1) or gB(2)
 	click = isPressing and not hasPressed
-	
-	brt = gN(5)
 	
 	touchX = gN(3) + gN(5)
 	touchY = gN(4) + gN(6)
@@ -1583,11 +1582,6 @@ function onDraw()
 	sC(0,255,0)
 	dTB(w/2+2,h/2+7,28,5, string.format("%.0f", gridFilter) .. "x" .. string.format("%.0f", gridFilter), 0)
 
-
-	sC(0,0,0,brt)
-	dRF(1,1,70,70)
-
-
 	
 --[[	sC(255,255,255)
 	dT(2,2,"A")
@@ -1595,7 +1589,7 @@ function onDraw()
 	dL(1,7,6,1)
 	dL(1,1,6,7)]]
 	
-
+	sC(0, 0, 0, (1-brt) * 255)
+    dRF(1, 1, w, h)
 	
 end
-
