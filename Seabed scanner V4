@@ -1034,8 +1034,8 @@ function onTick()
 	hasPressed = not isPressing
     isPressing = gB(1) or gB(2)
     click = isPressing and hasPressed
-    touchX = gN(7)
-    touchY = gN(8)
+    touchX = gN(3)
+    touchY = gN(4)
     hi_boundary, lo_boundary = gN(4),gN(5)
     run = gB(3) and tick > 1 --testing                       --
     rec_size = 10000
@@ -1196,7 +1196,7 @@ function onTick()
     
     zoom_in = isPressing and check(w / 2 - 16, 2, 7, 7)
     if zoom_in and click then
-    	if zoom <= 100 then
+    	if displayRange <= 100 then
     		displayRange = math.max(displayRange - 25, 25)
     	else
     		displayRange = math.max(displayRange - zoomStep, 100)
@@ -1205,8 +1205,8 @@ function onTick()
     
     zoom_out = isPressing and check(w / 2 + 12, 2, 7, 7)
     if zoom_out and click then
-    	if zoom < 100 then
-    		zoom = zoom + 25
+    	if displayRange < 100 then
+    		displayRange = displayRange + 25
     	else
     		displayRange = math.min(displayRange + zoomStep, 5000)
     	end
