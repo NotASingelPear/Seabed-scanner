@@ -377,3 +377,601 @@ end
 
 
 
+
+
+
+
+
+-----------------------------------------------------------
+
+Symbol page with untested radar click function
+
+
+
+gN = input.getNumber
+sN = output.setNumber
+gB = input.getBool
+sB = output.setBool
+sC = screen.setColor
+dRF = screen.drawRectF
+dR = screen.drawRect
+dT = screen.drawText
+dTB = screen.drawTextBox
+dL = screen.drawLine
+f = math.floor
+pi2 = math.pi / 2
+cos = math.cos
+sin = math.sin
+gridFilter, heightFilter = 10, 1
+pos = { x = 0, y = 0 }
+prevPos = pos
+displayedPos = pos
+tick = 0
+displayRange = 300
+vertDispDepth = -200
+coll_warn_startTick = -math.huge
+--coll_warn_secs = 10
+
+
+
+
+refreshRate = property.getNumber("Refresh rate") --per seconds
+useAvgCalc = property.getBool("Fill empty pixels with average values")
+draught = property.getNumber("Draught (M)") or 0 *-1
+coll_warn_secs = property.getNumber("Warning sensitivity") * 20
+brt = property.getNumber("Brightness") or 0
+
+P = {}
+record = {}
+
+
+function check(x, y, w, h)
+    return touchX >= x and touchX <= x + (w or 0) and touchY >= y and touchY <= y + (h or 0)
+end
+
+function color(n)
+    if n < 0 then
+        sC(255, 0, 0)
+    elseif n <= 1 then
+        if n < 1 / 8 then
+            a = { 255, 255, 0 } --yellow
+            b = { 0, 255, 0 }
+        elseif n < 2 / 8 then
+            a = { 0, 255, 0 }
+            b = { 0, 153, 76 } --dark green
+        elseif n < 3 / 8 then
+            a = { 0, 153, 76 }
+            b = { 0, 255, 255 } --light blue
+        elseif n < 4 / 8 then
+            a = { 0, 255, 255 }
+            b = { 0, 76, 153 } --blue
+        elseif n < 5 / 8 then
+            a = { 0, 76, 153 }
+            b = { 0, 0, 255 } --dark blue
+        elseif n < 6 / 8 then
+            a = { 0, 0, 255 }
+            b = { 76, 0, 153 } --purple
+        elseif n < 7 / 8 then
+            a = { 76, 0, 153 }
+            b = { 255, 0, 255 } --pink
+        else
+            a = { 255, 0, 255 }
+            b = { 80, 0, 50 } --dark pink
+        end
+
+        dr = b[1] - a[1]
+        dg = b[2] - a[2]
+        db = b[3] - a[3]
+
+        k = n / (1 / 8) - f(n / (1 / 8))
+        sC(
+            a[1] + dr * k,
+            a[2] + dg * k,
+            a[3] + db * k
+        )
+    else
+        sC(0, 0, 0)
+    end
+end
+
+drawCenterY = -50
+pixelRadius = 71
+FOV = math.rad(43)
+cutoffY = 30
+vehiclerelativePosY = drawCenterY + pixelRadius - cutoffY --Relative to drawCenterY (center of radar display calculation)
+
+focusPoints = {}
+recordKeeper = {}
+
+
+-- P = {
+-- 	[50] = {
+-- 		--[0] = {depth = -10},
+-- 		--[40] = {depth = -30},
+-- 		[10] = {depth = 1}
+-- 	}--,
+-- 	-- [170] = {
+-- 	-- 	[-20] = {depth = -30},
+-- 	-- 	[30] = {depth = -30},
+-- 	-- 	[40] = {depth = -50}
+-- 	-- },
+-- 	-- [160] = {
+-- 	-- 	[-40] = {depth = -50},
+-- 	-- 	[0] = {depth = 10},
+-- 	-- 	[20] = {depth = 100}
+-- 	-- },
+-- 	-- [250] = {
+-- 	-- 	[-80] = {depth = - 100}
+-- 	-- }
+-- }
+
+
+function dButton(x, y, text, var)
+        sC(255, 255, 255)
+        if var then
+            dRF(x, y, 5, 5)
+        else
+            dR(x, y, 5, 5)
+        end
+        sC(0, 255, 0)
+        dT(x + 1, y, text)
+    end
+
+for angle = -FOV / 2, FOV / 2, 0.01 do
+    for lengthUnit = pixelRadius - cutoffY, pixelRadius, 0.5 do
+        if math.cos(angle) * lengthUnit > pixelRadius - cutoffY then
+            local x = ((math.cos(angle + math.pi / 2) * lengthUnit) + 0.5) // 1
+            local y = ((drawCenterY + (math.sin(angle + math.pi / 2) * lengthUnit)) + 0.5) // 1
+
+            if not recordKeeper[x] then
+                recordKeeper[x] = {}
+            end
+
+            if recordKeeper[x] and not recordKeeper[x][y] then
+                vesselAngle = math.atan(y - vehiclerelativePosY, x) - math.pi / 2
+                vesselDistUnits = math.sqrt(x ^ 2 + (y - vehiclerelativePosY) ^ 2)
+
+                table.insert(focusPoints, {
+                    vesselAngle = vesselAngle,
+                    vesselDistUnits = vesselDistUnits,
+                    relScreenPosX = x,
+                    relScreenPosY = y,
+                    depth = 0
+                })
+                recordKeeper[x][y] = true
+            end
+        end
+    end
+end
+recordKeeper = nil
+
+function findAvgDepth(x, y)
+    local surroundingPoints = {}
+
+    local i = 1
+    local maxIterations = 5
+    local gf = gridFilter
+    while #surroundingPoints < 3 and i <= maxIterations do
+        for y1 = y - i * gf, y + i * gf, i * 2 * gf do
+            for x1 = x - (i - 1) * gf, x + (i - 1) * gf, gf do
+                if P[x1] and P[x1][y1] then
+                    table.insert(surroundingPoints, P[x1][y1].depth)
+                end
+            end
+        end
+
+        for x1 = x - i * gf, x + i * gf, i * 2 * gf do
+            for y1 = y - i * gf, y + i * gf, gf do
+                if P[x1] and P[x1][y1] then
+                    table.insert(surroundingPoints, P[x1][y1].depth)
+                end
+            end
+        end
+
+
+        i = i + 1
+    end
+
+    if #surroundingPoints ~= 0 then
+        local totalDepth = 0
+        for _, depth in ipairs(surroundingPoints) do
+            totalDepth = totalDepth + depth
+        end
+        local avg = totalDepth / #surroundingPoints
+        return avg
+    else
+        return false
+    end
+end
+
+
+function isInsideRadarDisplay(tx, ty)
+	local relativeScreenPos = {
+		x = tx - (w/2 + 0),
+		y = -(ty - (h/2 + -drawCenterY)),
+	}
+	relativeScreenPos.relAngleDrawCenter = math.atan(relativeScreenPos.y, relativeScreenPos.x) - math.pi/2
+		
+	
+	if relativeScreenPos.y > (pixelRadius - cutoffY) and 
+	(relativeScreenPos.y < pixelRadius-3) and 
+	relativeScreenPos.relAngleDrawCenter < FOV/2 and 
+	relativeScreenPos.relAngleDrawCenter > -FOV/2 then
+		local y = relativeScreenPos.y - (pixelRadius - cutoffY)
+		return {relx = relativeScreenPos.x , rely = y, relAngle = math.atan(y, relativeScreenPos.x) - math.pi/2, screenDis = math.sqrt(relativeScreenPos.x^2 + y^2)}
+	else
+		return false
+	end
+end
+
+
+function onTick()
+	hasPressed = not isPressing
+    isPressing = gB(1) or gB(2)
+    click = isPressing and hasPressed
+    touchX = gN(3)--gN(7)
+    touchY = gN(4)--gN(8)
+    hi_boundary, lo_boundary = gN(4),gN(5)
+    run = gB(3) and tick > 1 --testing
+    draught = 0                         --
+    rec_size = 10000
+
+	prevPos = {x = pos.x, y = pos.y}
+    pos = {
+        x = gN(7), --east
+        y = 0--gN(3)  --north
+    }
+    -- Looking towards laser sensor from behind
+    azimuth = gN(6) --left
+
+
+    collisionWarnMuted = gB(4)
+    
+	velocity = 10--math.sqrt((pos.x - prevPos.x)^2 + (pos.y - prevPos.y)^2) * 60 --m/s
+
+    if run then
+        for i = 9, 32, 3 do
+            filteredPos = {
+
+                x = gN(i) // 1,
+                y = gN(i + 1) // 1,
+                z = gN(i + 2) // 1
+            }
+            if filteredPos.x ~= 0 then
+                if not P[filteredPos.x] then
+                    P[filteredPos.x] = {}
+                end
+
+                if P[filteredPos.x][filteredPos.y] and P[filteredPos.x][filteredPos.y].readings < 10 then
+                    if P[filteredPos.x][filteredPos.y].depth > draught - 0.5 then
+                        P[filteredPos.x][filteredPos.y].depth = filteredPos.z
+                        P[filteredPos.x][filteredPos.y].readings = 10
+                    else
+                        P[filteredPos.x][filteredPos.y].readings = P[filteredPos.x][filteredPos.y].readings + 1
+                        P[filteredPos.x][filteredPos.y].read_sum = P[filteredPos.x][filteredPos.y].read_sum +
+                            filteredPos.z
+                        P[filteredPos.x][filteredPos.y].depth = P[filteredPos.x][filteredPos.y].read_sum /
+                            P[filteredPos.x][filteredPos.y].readings
+                    end
+                elseif not P[filteredPos.x][filteredPos.y] then
+                    P[filteredPos.x][filteredPos.y] = { depth = filteredPos.z, readings = 1, read_sum = filteredPos.z }
+                    if filteredPos.z > draught - 0.5 then P[filteredPos.x][filteredPos.y].readings = 10 end
+                    table.insert(record, 1, { filteredPos.x, filteredPos.y })
+                    if #record > rec_size then
+                        P[record[rec_size + 1][1]][record[rec_size + 1][2]] = nil
+                        record[rec_size + 1] = nil
+                    end
+                end
+            end
+        end
+        
+        progress = (tick - startTick) % (1 / refreshRate * 60) / (1 / refreshRate*60)
+        if progress == 0 then
+        	vertDispPoints = {}
+			for dis = 10, displayRange, (displayRange-10)/39 do
+				local worldPos = {
+					x = (pos.x + math.cos(azimuth) * dis + gridFilter/2) // gridFilter * gridFilter,
+					y = (pos.y + math.sin(azimuth) * dis + gridFilter/2) // gridFilter * gridFilter
+				}
+			
+				local depthFound = false
+				if P[worldPos.x] and P[worldPos.x][worldPos.y] then
+					depth = P[worldPos.x][worldPos.y].depth
+					depthFound = true
+				elseif useAvgCalc and refreshRate < 30 then
+					avgDepth = findAvgDepth(worldPos.x, worldPos.y)
+					if avgDepth then
+						depth = avgDepth
+						depthFound = true
+					end
+				end
+				table.insert(vertDispPoints, {
+					depthFound = depthFound,
+					depth = depth,
+					dis = dis
+					})
+			end
+			
+			displayedPos = {x = pos.x, y = pos.y}
+			
+			if showRadarPressData then
+				local worldAngle = math.atan(radarPressData.worldPos.y - displayedPos.y, radarPressData.worldPos.x - displayedPos.x)
+				local worldDis = -math.sqrt((radarPressData.worldPos.x - displayedPos.x)^2 + (radarPressData.worldPos.y - displayedPos.y)^2)
+				radarPressData.relx = math.sin(worldAngle-azimuth) * worldDis / (displayRange/30)
+				radarPressData.rely = -math.cos(worldAngle-azimuth) * worldDis / (displayRange/30)
+
+				if not isInsideRadarDisplay(w/2 + radarPressData.relx, h/2 - (radarPressData.rely + (drawCenterY + pixelRadius - cutoffY))) then
+					showRadarPressData = false
+				end
+			end
+        end
+	
+		coll_warn = false
+		if not collisionWarnMuted then
+			for dis = 10, 300, 7 do
+				for i = -1, 1 do
+					worldPos = {
+							x = (pos.x + math.cos(azimuth + math.pi/2*i) * 5 + math.cos(azimuth) * dis + gridFilter/2) // gridFilter * gridFilter,
+							y = (pos.y + math.sin(azimuth + math.pi/2*i) * 5 + math.sin(azimuth) * dis + gridFilter/2) // gridFilter * gridFilter
+						}
+					
+					if P[worldPos.x] and P[worldPos.x][worldPos.y] then
+						if P[worldPos.x][worldPos.y].depth > draught*1.3 and (dis / velocity) < coll_warn_secs then
+							coll_warn = true
+						end
+					end
+				end
+			end
+		end
+		
+		
+		if click and isInsideRadarDisplay(touchX, touchY) then
+			radarPressData = isInsideRadarDisplay(touchX, touchY)
+			showRadarPressData = not showRadarPressData
+			if showRadarPressData then
+				local worldPos = {
+					x = (displayedPos.x + math.cos(azimuth + radarPressData.relAngle) * radarPressData.screenDis * displayRange/30 + gridFilter/2) // gridFilter * gridFilter,
+					y = (displayedPos.y + math.sin(azimuth + radarPressData.relAngle) * radarPressData.screenDis * displayRange/30 + gridFilter/2) // gridFilter * gridFilter
+				}
+				
+				local depth
+				if P[worldPos.x] and P[worldPos.x][worldPos.y] then
+					depth = P[worldPos.x][worldPos.y].depth
+				elseif useAvgCalc then
+					depth = findAvgDepth(worldPos.x, worldPos.y)
+				end
+				depth = depth or "nil"
+				
+				radarPressData.depth = depth
+				radarPressData.worldPos = {
+					x = worldPos.x,
+					y = worldPos.y
+				}
+			end
+		end
+	
+	
+	else
+		P = {}
+		record = {}
+		startTick = tick
+		vertDispPoints = {}
+    end
+    
+    
+    if displayRange >= 1500 then
+    	zoomStep = 500
+    else
+    	zoomStep = 100
+    end
+    
+    zoom_in = isPressing and check(w / 2 - 16, 2, 7, 7)
+    if zoom_in and click then
+    	displayRange = math.max(displayRange - zoomStep, 100)
+    end
+    
+    zoom_out = isPressing and check(w / 2 + 12, 2, 2, 7, 7)
+    if zoom_out and click then
+    	displayRange = math.min(displayRange + zoomStep, 5000)
+    end
+    
+    higher = isPressing and check(w / 2 - 27, h / 2 + 15, 7, 7)
+    if higher and click then
+    	vertDispDepth = math.min(vertDispDepth + 100, -100)
+    end
+    
+    lower = isPressing and check(w / 2 - 27, h / 2 + 23, 7, 7)
+    if lower and click then
+    	vertDispDepth = math.max(vertDispDepth - 100, -1000)
+    end
+    
+    showOptionsPage = showOptionsPagePressed and not isPressing
+    showOptionsPagePressed = isPressing and check(2, 2, 7, 7)
+    
+    coll_warn_dur = 60
+    if coll_warn then
+    	coll_warn_startTick = tick
+    end
+    
+	coll_warn_active = (tick - coll_warn_startTick) < coll_warn_dur 
+	
+	
+	
+	
+	
+    	
+    
+    
+    sN(1, displayRange)
+    sB(1, showOptionsPage)
+    sB(2, coll_warn_active)
+
+    tick = tick + 1
+end
+
+
+
+function onDraw()
+    w, h = screen.getWidth(), screen.getHeight()
+
+
+
+	dButton(2, 2, "", showOptionsPagePressed)
+    sC(0, 255, 0)
+    dRF(3, 3, 3, 3)
+
+	if collisionWarnMuted then
+	    sC(255, 255, 255)
+	    screen.drawCircle(w-5, 5, 3)
+	    sC(255, 0, 0)
+	    dT(w-6, 3, "!")
+	end
+
+    sC(255, 255, 255)
+    dT(w / 2 + 23, h / 2 + 15, 0)
+    dT(w / 2 + 23, h / 2 + 23, string.format("%.0f", -vertDispDepth / 100))
+
+    dT(4, h / 2 - 8, string.format("%.0f", math.abs(hi_boundary) / 100))
+    dT(4, h / 2 + 2, string.format("%.0f", math.abs(lo_boundary) / 100))
+
+    dTB(1, 2, w, 6, displayRange, 0, 0)
+    dButton(w / 2 - 16, 2, "+", zoom_in)
+    
+    --screen.drawRect(w / 2 - 16, 2, 5, 5)
+    
+    dButton(w / 2 + 12, 2, "-", zoom_out)
+    dButton(w / 2 - 27, h / 2 + 15, "+", higher)
+    dButton(w / 2 - 27, h / 2 + 23, "-", lower)
+
+    steps = 20
+    startI = -0.1
+    endI = 1
+    for i = 0, 1, 1 / steps do
+        color(startI + i * (endI - startI))
+        dRF(2, h / 2 - 10 + i * steps, 1, 1)
+    end
+
+
+
+    -- drawCenterY = -50
+    -- pixelRadius = 71
+    -- FOV = math.rad(43)
+    -- cutoffY = 30
+    sC(255, 255, 255)
+
+    dL(
+        w / 2 + math.cos(math.pi / 2 + FOV / 2) * 71,
+        h / 2 + 50 - math.sin(math.pi / 2 + FOV / 2) * 71,
+        w / 2 + math.cos(math.pi / 2 + FOV / 2) * 43,
+        h / 2 + 50 - math.sin(math.pi / 2 + FOV / 2) * 43
+    )
+
+    dL(
+        w / 2 + math.cos(math.pi / 2 - FOV / 2 * 1.02) * 71 + 0.3,
+        h / 2 + 50 - math.sin(math.pi / 2 - FOV / 2 * 1.02) * 71,
+        w / 2 + math.cos(math.pi / 2 - FOV / 2 * 1.02) * 43 + 1,
+        h / 2 + 50 - math.sin(math.pi / 2 - FOV / 2 * 1.02) * 43
+    )
+
+    dL(
+        w / 2 + math.cos(math.pi / 2 + FOV / 2) * 43,
+        h / 2 + 50 - math.sin(math.pi / 2 + FOV / 2) * 43,
+        w / 2 + math.cos(math.pi / 2 - FOV / 2) * 43 + 2,
+        h / 2 + 50 - math.sin(math.pi / 2 - FOV / 2) * 43
+    )
+
+    for i = -FOV / 2, FOV / 2, FOV / 60 do
+        dRF(
+            w / 2 + math.cos(math.pi / 2 + i) * 71,
+            h / 2 + 50 - math.sin(math.pi / 2 + i) * 71,
+            1,
+            1
+        )
+    end
+    
+    
+
+	sC(255, 0, 0)
+	for _, point in ipairs(vertDispPoints) do
+		if point.depthFound and point.depth >= vertDispDepth then
+			if point.depth > draught * 1.3 then
+				y = -1
+				sC(255, 0, 0)
+			elseif point.depth > -20 then
+				y = 13 * point.depth / vertDispDepth
+				sC(255, 255, 0)
+			else
+				y = 13 * point.depth / vertDispDepth
+				sC(0, 255, 0)
+			end
+			
+			dRF(
+				w / 2 - 20 + 39 * point.dis/displayRange,
+				h / 2 + 16 + y,
+				1,
+				1
+			)
+		end
+	end
+	
+    sC(255, 255, 255)
+    dR(w / 2 - 19, h / 2 + 14, 39, 15)
+    dL(w / 2 - 20, h / 2 + 16, w / 2 - 17, h / 2 + 16)
+    dL(w/2, h/2+9, w/2, h/2+12)
+	
+	if showRadarPressData then
+		if type(radarPressData.depth) == "number" and radarPressData.depth < hi_boundary-30 then
+			sC(255, 255, 0)
+		else
+			sC(255, 255, 255)
+		end
+		local screenPointPos = {x = w/2 + radarPressData.relx, y = h/2 - (radarPressData.rely + (drawCenterY + pixelRadius - cutoffY))}
+		
+		screen.drawCircle(screenPointPos.x, screenPointPos.y, 1)
+		local radarDisplayCenter = {x = w/2, y = h/2 - (drawCenterY + pixelRadius - cutoffY/2)}
+		local angle = math.atan(radarDisplayCenter.y - screenPointPos.y , radarDisplayCenter.x - screenPointPos.x)
+		screen.drawTextBox(
+			screenPointPos.x + math.cos(angle) * 11 - 20, 
+			screenPointPos.y + math.sin(angle) * 11 - 3, 
+			40, 
+			6,
+			type(radarPressData.depth) == "number" and -radarPressData.depth .. "" or radarPressData.depth, 
+			0, 
+			0
+		)
+		
+
+		sC(0, 0, 0)
+		dRF(w/2 - 32, h/2 + 12, 64, 20)
+		
+		sC(0, 255, 0)
+		dT(w/2 - 28, h/2 + 15, "X: " .. radarPressData.worldPos.x)
+		dT(w/2 - 28, h/2 + 22, "Y: " .. radarPressData.worldPos.y)
+	end
+	
+	
+	
+
+
+    if coll_warn_active then
+    	sC(0,0,0)
+    	dRF(w/2-27, 8, 55, 16)
+    	sC(255,0,0)
+    	dR(w/2-27, 8, 55, 16)
+    	sC(255,255,255)
+    	dTB(w/2-27, 10, 55, 16, "COLLISION", 0)
+    	dTB(w/2-27, 16, 55, 16, "AHEAD", 0)
+    end
+
+
+
+    sC(0, 0, 0, (1-brt) * 255)
+    dRF(1, 1, w, h)
+end
+
+
+
+
+
+
+
