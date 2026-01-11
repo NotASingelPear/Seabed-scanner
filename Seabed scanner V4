@@ -1434,7 +1434,7 @@ w, h = 0, 0
 
 collisionWarnMuted = not property.getBool("Collision warning")
 gridFilter = property.getNumber("Gridsize") or 10
-brt = 1 --property.getNumber("Brightness") or 1
+brt = property.getNumber("Brightness") or 1
 subMode = property.getBool("Submarine mode")
 
 gridSizes = { 1, 2, 5, 10, 20 }
