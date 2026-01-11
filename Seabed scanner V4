@@ -2,6 +2,7 @@
 
 
 
+
 gN = input.getNumber
 sN = output.setNumber
 sC = screen.setColor
@@ -169,7 +170,7 @@ function onTick()
     -- Looking towards laser sensor from behind
 	-- roll = gN(4)	--left
  --   pitch = gN(5)	--up
- --   azimuth = gN(6)	--left
+    azimuth = gN(6)	--left
     
     
     gridFilterPrev = gridFilter
@@ -295,6 +296,7 @@ function onDraw()
 		end
 	end
 end
+
 
 
 
