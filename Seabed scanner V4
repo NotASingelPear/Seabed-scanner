@@ -1,6 +1,7 @@
 --Recieves new calculated points and draws graphics
 
 
+
 gN = input.getNumber
 sN = output.setNumber
 sC = screen.setColor
@@ -18,7 +19,7 @@ tick = 0
 refreshRate = property.getNumber("Refresh rate")--per seconds
 useAvgCalc = property.getBool("Fill empty pixels with average values")
 draught = property.getNumber("Draught (M)") or 0 *-1
-subMode = property.getBool("Submarine mode")
+--subMode = property.getBool("Submarine mode")
 
 P = {}
 record = {}
@@ -176,6 +177,8 @@ function onTick()
     if gridFilterPrev ~= gridFilter then
     	run = false
     end
+    
+    subMode = gB(11)
 
 
 	
@@ -292,6 +295,7 @@ function onDraw()
 		end
 	end
 end
+
 
 
 
@@ -819,6 +823,7 @@ useAvgCalc = property.getBool("Fill empty pixels with average values")
 draught = property.getNumber("Draught (M)")
 coll_warn_secs = property.getNumber("Warning sensitivity") * 10
 brt = property.getNumber("Brightness") or 1
+--subMode = property.getBool("Submarine mode")
 
 P = {}
 record = {}
@@ -1016,7 +1021,8 @@ function onTick()
 	prevPos = {x = pos.x, y = pos.y}
     pos = {
         x = gN(1), --east
-        y = gN(3)  --north
+        y = gN(3),  --north
+        z = gN(2)	--up
     }
     -- Looking towards laser sensor from behind
     azimuth = gN(6) --left
@@ -1026,6 +1032,8 @@ function onTick()
     if gridFilterPrev ~= gridFilter then
     	run = false
     end
+    
+    subMode = gB(11)
 
 
     collisionWarnMuted = gB(4)
@@ -1119,7 +1127,7 @@ function onTick()
 						}
 					
 					if P[worldPos.x] and P[worldPos.x][worldPos.y] then
-						if P[worldPos.x][worldPos.y].depth > (-draught*1.3-2) and (dis / velocity) < coll_warn_secs and velocity > 8 then
+						if P[worldPos.x][worldPos.y].depth > (-draught*1.3-2 + (subMode and pos.z or 0)) and (dis / velocity) < coll_warn_secs and velocity > 10 then
 							coll_warn = true
 						end
 					end
@@ -1309,14 +1317,14 @@ function onDraw()
 	sC(255, 0, 0)
 	for _, point in ipairs(vertDispPoints) do
 		if point.depthFound and point.depth >= vertDispDepth then
-			if point.depth > (-draught*1.3-2) then
+			if point.depth > (-draught*1.3-2 + (subMode and pos.z or 0)) then
 				y = -1
 				sC(255, 0, 0)
-			elseif point.depth > -20 then
-				y = 13 * point.depth / vertDispDepth
+			elseif point.depth > (-20 + subMode and pos.z or 0) then
+				y = 13 * ( point.depth + (subMode and -pos.z or 0)) / (vertDispDepth )
 				sC(255, 255, 0)
 			else
-				y = 13 * point.depth / vertDispDepth
+				y = 13 * ( point.depth + (subMode and -pos.z or 0)) / (vertDispDepth )
 				sC(0, 255, 0)
 			end
 			
@@ -1392,6 +1400,19 @@ function onDraw()
     sC(0, 0, 0, (1-brt) * 255)
     dRF(1, 1, w, h)
 end
+
+
+-- do
+-- 	subMode = false--true
+-- 	local point = {depth = -75}
+-- 	local pos = {z = -79}
+-- 	local vertDispDepth = -200
+-- 	print( (point.depth + (subMode and -pos.z or 0)) / (vertDispDepth ) )
+-- 	-- print((vertDispDepth + (subMode and pos.z or 0)))
+-- end
+
+
+
 
 
 
