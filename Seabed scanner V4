@@ -1034,8 +1034,8 @@ function onTick()
 	hasPressed = not isPressing
     isPressing = gB(1) or gB(2)
     click = isPressing and hasPressed
-    touchX = gN(3)
-    touchY = gN(4)
+    touchX = gN(7)
+    touchY = gN(8)
     hi_boundary, lo_boundary = gN(4),gN(5)
     run = gB(3) and tick > 1 --testing                       --
     rec_size = 10000
