@@ -1,12 +1,12 @@
 FEATURES
-- submarine mode
 - Make easy to install package
+- DONE       submarine mode
 - DONE       User interface
 - DONE       Point 2 sensors downward to scan better at deep waters
 - DONE       Ability to click on a point and show depth ++
 
 BUGS
-- Make collision warning use track, instead of azimuth
+- DONE Make collision warning use track, instead of azimuth
 - DONE?      Red depths are overwritten constantly
 - OK         Radar display overlaps multiple points
 - DONE       points just under surface(bridge) is not displayed as red although higher than draught depth.
