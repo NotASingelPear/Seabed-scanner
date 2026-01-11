@@ -344,8 +344,9 @@ si=math.sin
 tick = 0
 
 
-lowestDetectable, highestDetectable = 10, 4000
-gridFilter, heightFilter = 10, 1
+lowestDetectable, highestDetectable = 30, 4000
+gridFilter, heightFilter = property.getNumber("Gridsize"), 1--10, 1
+
 sensorInputStartCh = 9
 outStartCh = 9
 
@@ -428,6 +429,8 @@ function onTick()
     
     
     
+	gridFilter = gB(6) and 1 or gB(7) and 2 or gB(8) and 5 or gB(9) and 10 or gB(10) and 20 or gridFilter
+
 	if run then
 	    vector = {
 			right_noRoll = {
@@ -466,8 +469,9 @@ function onTick()
 			z = vector.up_noRoll.z * math.cos(roll) + vector.right_noRoll.z * math.sin(roll)
 		}
 		
+		--FORWARD FACING SENSORS 9-26:
 		--SENSOR ORIENTATION: looking at sensor face - Big arrow facing down, small arrow facing left
-	    for i = 9, 32, 3 do
+	    for i = 9, 26, 3 do
 		    measuredDis = gN(i)
 		    angleX = gN(1 + i) * math.pi/4		--right
 		    angleY = gN(2 + i) * math.pi/4		--up
@@ -542,9 +546,11 @@ function onDraw()
 		dT(1, 45, "A-X: " .. angleX)
 		dT(1, 51, "A-Y: " .. angleY)
 		
-		dT(1, 60, string.format("%.3f", vector.right.x))
-		dT(1, 66, string.format("%.3f", vector.right.y))
-		dT(1, 72, string.format("%.3f", vector.right.z))
+		if filteredPos then
+			dT(1, 60, string.format("%.3f", filteredPos.x))
+			dT(1, 66, string.format("%.3f", filteredPos.y))
+			dT(1, 72, string.format("%.3f", filteredPos.z))
+		end
 		
 		-- if filteredPosToDisplay then
 		-- 	--dT(1, h-7, string.format("%.0f", filteredPosToDisplay.x), string.format("%.0f", filteredPosToDisplay.y), string.format("%.0f", filteredPosToDisplay.z))
@@ -557,6 +563,7 @@ function onDraw()
 	end
 	
 end
+
 
 
 ----------------------------------------------------------------------
