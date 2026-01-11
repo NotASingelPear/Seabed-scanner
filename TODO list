@@ -2,8 +2,8 @@ EFATURES
 - DONE User interface
 - submarine mode
 - Make easy to install package
-- Point 2 sensors downward to scan better at deep waters
-- Ability to click on a point and show depth ++
+- DONE Point 2 sensors downward to scan better at deep waters
+- DONE Ability to click on a point and show depth ++
 
 BUGS
 - DONE ? Red depths are overwritten constantly
