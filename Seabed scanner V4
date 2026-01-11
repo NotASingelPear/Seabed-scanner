@@ -1432,11 +1432,16 @@ end
 
 --Options page
 
-gB,gN,sN,sC,dTB,dT,dR,dRF,dL=input.getBool,input.getNumber,output.setNumber,screen.setColor,screen.drawTextBox,screen.drawText,screen.drawRect,screen.drawRectF,screen.drawLine
+gB,sB,gN,sN,sC,dTB,dT,dR,dRF,dL=input.getBool,output.setBool,input.getNumber,output.setNumber,screen.setColor,screen.drawTextBox,screen.drawText,screen.drawRect,screen.drawRectF,screen.drawLine
+
 hi_boundary,lo_boundary=0,-200
 w, h = 0, 0
 
 collisionWarnMuted = not property.getBool("Collision warning")
+gridFilter = property.getNumber("Gridsize")
+
+gridSizes = {1, 2, 5, 10, 20}
+currentGridTableI = 4
 
 function check(x,y,w,h)
 	return (touchX >= x and touchX <= x+w and touchY >= y and touchY <= y+h)
@@ -1497,6 +1502,12 @@ function onTick()
 		end
 	end
 	
+	gridChangePressed = isPressing and check(w/2+2,h/2-1,28,15)
+	if gridChangePressed and click then
+		currentGridTableI = (currentGridTableI % #gridSizes) + 1
+		gridFilter = gridSizes[currentGridTableI]
+	end
+	
 	showOptionsPage = showOptionsPagePressed and not isPressing
 	showOptionsPagePressed = isPressing and check(2,2,6,6)
 
@@ -1504,6 +1515,12 @@ function onTick()
 	
 	sN(1, hi_boundary)
 	sN(2, lo_boundary)
+	
+	sB(6, gridFilter == 1)
+	sB(7, gridFilter == 2)
+	sB(8, gridFilter == 5)
+	sB(9, gridFilter == 10)
+	sB(10, gridFilter == 20)
 	
 	output.setBool(1, showOptionsPage)
 	output.setBool(2, collisionWarnMuted)
@@ -1555,6 +1572,18 @@ function onDraw()
 	dTB(w/2+2,h/2-10,28,5,txt,0)
 
 
+	sC(255,255,255)
+	dTB(w/2+2,h/2,28,5,"GRID",0)
+	if gridChangePressed then
+		dRF(w/2+2,h/2-1,28,15)
+	else
+		dR(w/2+2,h/2-1,28,15)
+	end
+	
+	sC(0,255,0)
+	dTB(w/2+2,h/2+7,28,5, string.format("%.0f", gridFilter) .. "x" .. string.format("%.0f", gridFilter), 0)
+
+
 	sC(0,0,0,brt)
 	dRF(1,1,70,70)
 
@@ -1569,3 +1598,4 @@ function onDraw()
 
 	
 end
+
