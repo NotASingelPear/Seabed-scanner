@@ -1426,164 +1426,193 @@ end
 
 --Options page
 
-gB,sB,gN,sN,sC,dTB,dT,dR,dRF,dL=input.getBool,output.setBool,input.getNumber,output.setNumber,screen.setColor,screen.drawTextBox,screen.drawText,screen.drawRect,screen.drawRectF,screen.drawLine
+gB, sB, gN, sN, sC, dTB, dT, dR, dRF, dL = input.getBool, output.setBool, input.getNumber, output.setNumber,
+    screen.setColor, screen.drawTextBox, screen.drawText, screen.drawRect, screen.drawRectF, screen.drawLine
 
-hi_boundary,lo_boundary=0,-200
+hi_boundary, lo_boundary = 0, -200
 w, h = 0, 0
 
 collisionWarnMuted = not property.getBool("Collision warning")
-gridFilter = property.getNumber("Gridsize")
-brt = property.getNumber("Brightness") or 1
+gridFilter = property.getNumber("Gridsize") or 10
+brt = 1 --property.getNumber("Brightness") or 1
+subMode = property.getBool("Submarine mode")
 
-gridSizes = {1, 2, 5, 10, 20}
+gridSizes = { 1, 2, 5, 10, 20 }
 currentGridTableI = 4
 
-function check(x,y,w,h)
-	return (touchX >= x and touchX <= x+w and touchY >= y and touchY <= y+h)
+function check(x, y, w, h)
+    return (touchX >= x and touchX <= x + w and touchY >= y and touchY <= y + h)
 end
 
-function dButton(x,y,text,var)
-	sC(255,255,255)
-	if var then
-		dRF(x, y, 5,5)
-	else
-		dR(x, y, 5,5)
-	end
-	sC(0,255,0)
-	dT(x+1, y, text)
+function dButton(x, y, text, var)
+    sC(255, 255, 255)
+    if var then
+        dRF(x, y, 5, 5)
+    else
+        dR(x, y, 5, 5)
+    end
+    sC(0, 255, 0)
+    dT(x + 1, y, text)
 end
 
 function onTick()
-	hasPressed = isPressing
-	isPressing = gB(1) or gB(2)
-	click = isPressing and not hasPressed
-	
-	touchX = gN(3) + gN(5)
-	touchY = gN(4) + gN(6)
-	
-	
-	alarmPressed = isPressing and check(w/2+2, h/2-17, 20, 15)
-	if alarmPressed and click then 
-		collisionWarnMuted = not collisionWarnMuted 
-	end
-	
-	hi_inc = isPressing and check(w/2-5, h/2-18, 6, 6)
-	if hi_inc then
-		if click and hi_boundary<0 then
-			hi_boundary = hi_boundary + 100
-		end
-	end
-	
-	hi_dec = isPressing and check(w/2-5, h/2-11, 6, 6)
-	if hi_dec then
-		if click and hi_boundary>lo_boundary+100 then
-			hi_boundary = hi_boundary - 100
-		end
-	end
-	
-	lo_inc = isPressing and check(w/2-5, h/2+12, 6, 6)
-	if lo_inc then
-		if click and lo_boundary<hi_boundary-100 then
-			lo_boundary = lo_boundary + 100
-		end
-	end
-	
-	lo_dec = isPressing and check(w/2-5, h/2+19, 6, 6)
-	if lo_dec then
-		if click and lo_boundary>-500 then
-			lo_boundary = lo_boundary - 100 
-		end
-	end
-	
-	gridChangePressed = isPressing and check(w/2+2,h/2-1,28,15)
-	if gridChangePressed and click then
-		currentGridTableI = (currentGridTableI % #gridSizes) + 1
-		gridFilter = gridSizes[currentGridTableI]
-	end
-	
-	showOptionsPage = showOptionsPagePressed and not isPressing
-	showOptionsPagePressed = isPressing and check(2,2,6,6)
+    hasPressed = isPressing
+    isPressing = gB(1) or gB(2)
+    click = isPressing and not hasPressed
+
+    touchX = gN(3) + gN(5)
+    touchY = gN(4) + gN(6)
 
 
-	
-	sN(1, hi_boundary)
-	sN(2, lo_boundary)
-	
-	sB(6, gridFilter == 1)
-	sB(7, gridFilter == 2)
-	sB(8, gridFilter == 5)
-	sB(9, gridFilter == 10)
-	sB(10, gridFilter == 20)
-	
-	output.setBool(1, showOptionsPage)
-	output.setBool(2, collisionWarnMuted)
+    alarmPressed = isPressing and check(w / 2 + 2, h / 2 - 17, 20, 15)
+    if alarmPressed and click then
+        collisionWarnMuted = not collisionWarnMuted
+    end
+
+    hi_inc = isPressing and check(w / 2 - 5, h / 2 - 18, 6, 6)
+    if hi_inc then
+        if click and hi_boundary < 0 then
+            hi_boundary = hi_boundary + 100
+        end
+    end
+
+    hi_dec = isPressing and check(w / 2 - 5, h / 2 - 11, 6, 6)
+    if hi_dec then
+        if click and hi_boundary > lo_boundary + 100 then
+            hi_boundary = hi_boundary - 100
+        end
+    end
+
+    lo_inc = isPressing and check(w / 2 - 5, h / 2 + 12, 6, 6)
+    if lo_inc then
+        if click and lo_boundary < hi_boundary - 100 then
+            lo_boundary = lo_boundary + 100
+        end
+    end
+
+    lo_dec = isPressing and check(w / 2 - 5, h / 2 + 19, 6, 6)
+    if lo_dec then
+        if click and lo_boundary > -500 then
+            lo_boundary = lo_boundary - 100
+        end
+    end
+
+    gridChangePressed = isPressing and check(w / 2 + 2, h / 2 - 1, 28, 15)
+    if gridChangePressed and click then
+        currentGridTableI = (currentGridTableI % #gridSizes) + 1
+        gridFilter = gridSizes[currentGridTableI]
+    end
+
+
+
+    subModeChangePressed = isPressing and check(w / 2 + 2, h / 2 + 16, 28, 15)
+    if subModeChangePressed and click then
+        subMode = not subMode
+    end
+
+    showOptionsPage = showOptionsPagePressed and not isPressing
+    showOptionsPagePressed = isPressing and check(2, 2, 6, 6)
+
+
+
+    sN(1, hi_boundary)
+    sN(2, lo_boundary)
+
+    sB(6, gridFilter == 1)
+    sB(7, gridFilter == 2)
+    sB(8, gridFilter == 5)
+    sB(9, gridFilter == 10)
+    sB(10, gridFilter == 20)
+    sB(11, subMode)
+
+    output.setBool(1, showOptionsPage)
+    output.setBool(2, collisionWarnMuted)
 end
 
 function onDraw()
-	w, h = screen.getWidth(), screen.getHeight()
-	
-	dButton(2,2, "", showOptionsPagePressed)
-	sC(0,255,0)
-	dRF(3,3,3,3)
-	
-	sC(255,255,255)
-	dTB(1,1,w,10,"OPTIONS",0)
-	
-	dButton(w/2-5, h/2-18, "+", hi_inc)
-	dButton(w/2-5, h/2-11, "-", hi_dec)
-	dButton(w/2-5,h/2+12,"+",lo_inc)
-	dButton(w/2-5,h/2+19,"-",lo_dec)
-	
-	sC(0,255,0)
-	dR(w/2-27,hi_boundary/-500*35-18+h/2,20,7)
-	dL(w/2-30,hi_boundary/-500*35-15+h/2,w/2-27,hi_boundary/-500*35+h/2-15)
-	dR(w/2-27,lo_boundary/-500*35-18+h/2,20,7)
-	dL(w/2-30,lo_boundary/-500*35-15+h/2,w/2-27,lo_boundary/-500*35+h/2-15)
-	dL(w/2-30,hi_boundary/-500*35-15+h/2,w/2-30,lo_boundary/-500*35+h/2-15)
-	
-	sC(255,255,255)
-	for i=0,5 do
-		dTB(w/2-27,h/2+i*7-17,20,5,i*100,0)	
-	end
-	
-	
-	
-	dTB(w/2+2,h/2-17,28,5,"ALARM",0)
-	if alarmPressed then
-		dRF(w/2+2,h/2-18,28,15)
-	else
-		dR(w/2+2,h/2-18,28,15)
-	end
-	
-	if collisionWarnMuted then
-		sC(255,0,0)
-		txt = "MUTE"
-	else
-		sC(0,255,0)
-		txt = "ON"
-	end
-	dTB(w/2+2,h/2-10,28,5,txt,0)
+    w, h = screen.getWidth(), screen.getHeight()
+
+    dButton(2, 2, "", showOptionsPagePressed)
+    sC(0, 255, 0)
+    dRF(3, 3, 3, 3)
+
+    sC(255, 255, 255)
+    dTB(1, 1, w, 10, "OPTIONS", 0)
+
+    dButton(w / 2 - 5, h / 2 - 18, "+", hi_inc)
+    dButton(w / 2 - 5, h / 2 - 11, "-", hi_dec)
+    dButton(w / 2 - 5, h / 2 + 12, "+", lo_inc)
+    dButton(w / 2 - 5, h / 2 + 19, "-", lo_dec)
+
+    sC(0, 255, 0)
+    dR(w / 2 - 27, hi_boundary / -500 * 35 - 18 + h / 2, 20, 7)
+    dL(w / 2 - 30, hi_boundary / -500 * 35 - 15 + h / 2, w / 2 - 27, hi_boundary / -500 * 35 + h / 2 - 15)
+    dR(w / 2 - 27, lo_boundary / -500 * 35 - 18 + h / 2, 20, 7)
+    dL(w / 2 - 30, lo_boundary / -500 * 35 - 15 + h / 2, w / 2 - 27, lo_boundary / -500 * 35 + h / 2 - 15)
+    dL(w / 2 - 30, hi_boundary / -500 * 35 - 15 + h / 2, w / 2 - 30, lo_boundary / -500 * 35 + h / 2 - 15)
+
+    sC(255, 255, 255)
+    for i = 0, 5 do
+        dTB(w / 2 - 27, h / 2 + i * 7 - 17, 20, 5, i * 100, 0)
+    end
 
 
-	sC(255,255,255)
-	dTB(w/2+2,h/2,28,5,"GRID",0)
-	if gridChangePressed then
-		dRF(w/2+2,h/2-1,28,15)
-	else
-		dR(w/2+2,h/2-1,28,15)
-	end
-	
-	sC(0,255,0)
-	dTB(w/2+2,h/2+7,28,5, string.format("%.0f", gridFilter) .. "x" .. string.format("%.0f", gridFilter), 0)
 
-	
---[[	sC(255,255,255)
+    dTB(w / 2 + 2, h / 2 - 16, 28, 5, "ALARM", 0, 0)
+    if alarmPressed then
+        dRF(w / 2 + 2, h / 2 - 18, 28, 15)
+    else
+        dR(w / 2 + 2, h / 2 - 18, 28, 15)
+    end
+
+    if collisionWarnMuted then
+        sC(255, 0, 0)
+        txt = "MUTE"
+    else
+        sC(0, 255, 0)
+        txt = "ON"
+    end
+    dTB(w / 2 + 2, h / 2 - 9, 28, 5, txt, 0, 0)
+
+
+    sC(255, 255, 255)
+    dTB(w / 2 + 2, h / 2 + 1, 28, 5, "GRID", 0, 0)
+    if gridChangePressed then
+        dRF(w / 2 + 2, h / 2 - 1, 28, 15)
+    else
+        dR(w / 2 + 2, h / 2 - 1, 28, 15)
+    end
+
+    sC(0, 255, 0)
+    dTB(w / 2 + 2, h / 2 + 8, 28, 5, string.format("%.0f", gridFilter) .. "x" .. string.format("%.0f", gridFilter), 0, 0)
+
+
+
+    sC(255, 255, 255)
+    dTB(w / 2 + 2, h / 2 + 18, 28, 5, "MODE", 0, 0)
+    if subModeChangePressed then
+        dRF(w / 2 + 2, h / 2 + 16, 28, 15)
+    else
+        dR(w / 2 + 2, h / 2 + 16, 28, 15)
+    end
+
+    if subMode then
+        sC(255, 255, 0)
+        txt = "SUB"
+    else
+        sC(0, 255, 0)
+        txt = "NORM"
+    end
+    dTB(w / 2 + 2, h / 2 + 25, 28, 5, txt, 0, 0)
+
+
+    --[[	sC(255,255,255)
 	dT(2,2,"A")
 	sC(255,0,0)
 	dL(1,7,6,1)
 	dL(1,1,6,7)]]
-	
-	sC(0, 0, 0, (1-brt) * 255)
+
+    sC(0, 0, 0, (1 - brt) * 255)
     dRF(1, 1, w, h)
-	
 end
+
