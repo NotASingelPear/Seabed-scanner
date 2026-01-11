@@ -1,15 +1,18 @@
 --Recieves new calculated points and draws graphics
 
+--maxPoints = property.getNumber("Maximum datapoints") or 10000
+
 gN = input.getNumber
 sN = output.setNumber
 sC = screen.setColor
 dRF = screen.drawRectF
+gB = input.getBool
 f = math.floor
 pi2 = math.pi/2
 cos = math.cos
 sin = math.sin
 set_range = 350
-gridFilter, heightFilter = 10, 1
+gridFilter, heightFilter = property.getNumber("Gridsize"), 1--10, 1
 prevPos = {x = 0, y = 0}
 tick = 0
 
@@ -175,7 +178,6 @@ function onTick()
 	--touchY = gN(8)
 	hi_boundary, lo_boundary = gN(7),gN(8)
 	run = input.getBool(3) and tick > 1	--testing
-	draught = 0 --
 	rec_size = 10000
 	displayRange = gN(2)
 	
@@ -189,6 +191,13 @@ function onTick()
 	roll = gN(4)	--left
     pitch = gN(5)	--up
     azimuth = gN(6)	--left
+    
+    
+    gridFilterPrev = gridFilter
+    gridFilter = gB(6) and 1 or gB(7) and 2 or gB(8) and 5 or gB(9) and 10 or gB(10) and 20 or gridFilter
+    if gridFilterPrev ~= gridFilter then
+    	run = false
+    end
 
 
 	
@@ -206,7 +215,7 @@ function onTick()
 				end
 				
 				if P[filteredPos.x][filteredPos.y] and (P[filteredPos.x][filteredPos.y].readings < 10 or filteredPos.z > draught*1.3) then
-					if filteredPos.z > draught*1.3 then
+					if filteredPos.z > (-draught*1.3-2) then
 						P[filteredPos.x][filteredPos.y].depth = filteredPos.z
 						P[filteredPos.x][filteredPos.y].readings = 10
 					else
@@ -217,7 +226,7 @@ function onTick()
 					end
 				elseif not P[filteredPos.x][filteredPos.y] then
 					P[filteredPos.x][filteredPos.y] = {depth = filteredPos.z, readings = 1, read_sum = filteredPos.z}
-					if filteredPos.z > draught*1.3 then P[filteredPos.x][filteredPos.y].readings = 10 end
+					if filteredPos.z > (-draught*1.3-2) then P[filteredPos.x][filteredPos.y].readings = 10 end
 					table.insert(record, 1, {filteredPos.x, filteredPos.y})
 					if #record > rec_size then
 						P[ record[rec_size+1][1] ][ record[rec_size+1][2] ] = nil
@@ -297,7 +306,7 @@ function onDraw()
 	if run then
 		for _, point in ipairs(drawPoints) do
 			if point.depthFound then
-				color(((-draught*1.3 + point.depth) - (hi_boundary)) / (lo_boundary - hi_boundary))
+				color(((-(-draught*1.3-2)) + point.depth - (hi_boundary)) / (lo_boundary - hi_boundary))
 
 			else
 				sC(30, 30, 30)
@@ -306,6 +315,13 @@ function onDraw()
 		end
 	end
 end
+
+--print(draught)
+-- hi_boundary = 0
+-- lo_boundary = -200
+-- print( ((-(-draught*1.3-2)) + point.depth - (hi_boundary)) / (lo_boundary - hi_boundary) )
+
+
 
 
 
@@ -805,9 +821,10 @@ f = math.floor
 pi2 = math.pi / 2
 cos = math.cos
 sin = math.sin
-gridFilter, heightFilter = 10, 1
-prevPos = { x = 0, y = 0 }
+gridFilter, heightFilter = property.getNumber("Gridsize"), 1--10, 1
 pos = { x = 0, y = 0 }
+prevPos = pos
+displayedPos = pos
 tick = 0
 displayRange = 300
 vertDispDepth = -200
@@ -819,13 +836,12 @@ coll_warn_startTick = -math.huge
 
 refreshRate = property.getNumber("Refresh rate") --per seconds
 useAvgCalc = property.getBool("Fill empty pixels with average values")
-draught = property.getNumber("Draught (M)") or 0 *-1
-coll_warn_secs = property.getNumber("Warning sensitivity") * 20
+draught = property.getNumber("Draught (M)")
+coll_warn_secs = property.getNumber("Warning sensitivity") * 10
 brt = property.getNumber("Brightness") or 0
 
 P = {}
 record = {}
-
 
 function check(x, y, w, h)
     return touchX >= x and touchX <= x + (w or 0) and touchY >= y and touchY <= y + (h or 0)
@@ -880,8 +896,7 @@ drawCenterY = -50
 pixelRadius = 71
 FOV = math.rad(43)
 cutoffY = 30
-vehiclerelativePosY = drawCenterY + pixelRadius -
-cutoffY --Relative to drawCenterY (center of radar display calculation)
+vehiclerelativePosY = drawCenterY + pixelRadius - cutoffY --Relative to drawCenterY (center of radar display calculation)
 
 focusPoints = {}
 recordKeeper = {}
@@ -988,6 +1003,26 @@ function findAvgDepth(x, y)
 end
 
 
+function isInsideRadarDisplay(tx, ty)
+	local relativeScreenPos = {
+		x = tx - (w/2 + 0),
+		y = -(ty - (h/2 + -drawCenterY)),
+	}
+	relativeScreenPos.relAngleDrawCenter = math.atan(relativeScreenPos.y, relativeScreenPos.x) - math.pi/2
+		
+	
+	if relativeScreenPos.y > (pixelRadius - cutoffY) and 
+	(relativeScreenPos.y < pixelRadius-3) and 
+	relativeScreenPos.relAngleDrawCenter < FOV/2 and 
+	relativeScreenPos.relAngleDrawCenter > -FOV/2 then
+		local y = relativeScreenPos.y - (pixelRadius - cutoffY)
+		return {relx = relativeScreenPos.x , rely = y, relAngle = math.atan(y, relativeScreenPos.x) - math.pi/2, screenDis = math.sqrt(relativeScreenPos.x^2 + y^2)}
+	else
+		return false
+	end
+end
+
+
 function onTick()
 	hasPressed = not isPressing
     isPressing = gB(1) or gB(2)
@@ -995,8 +1030,7 @@ function onTick()
     touchX = gN(7)
     touchY = gN(8)
     hi_boundary, lo_boundary = gN(4),gN(5)
-    run = gB(3) and tick > 1 --testing
-    draught = 0                         --
+    run = gB(3) and tick > 1 --testing                       --
     rec_size = 10000
 
 	prevPos = {x = pos.x, y = pos.y}
@@ -1006,11 +1040,17 @@ function onTick()
     }
     -- Looking towards laser sensor from behind
     azimuth = gN(6) --left
+    
+    gridFilterPrev = gridFilter
+    gridFilter = gB(6) and 1 or gB(7) and 2 or gB(8) and 5 or gB(9) and 10 or gB(10) and 20 or gridFilter
+    if gridFilterPrev ~= gridFilter then
+    	run = false
+    end
 
 
     collisionWarnMuted = gB(4)
     
-	velocity = 10--math.sqrt((pos.x - prevPos.x)^2 + (pos.y - prevPos.y)^2) * 60 --m/s
+	velocity = math.sqrt((pos.x - prevPos.x)^2 + (pos.y - prevPos.y)^2) * 60 --m/s
 
     if run then
         for i = 9, 32, 3 do
@@ -1052,12 +1092,12 @@ function onTick()
         if progress == 0 then
         	vertDispPoints = {}
 			for dis = 10, displayRange, (displayRange-10)/39 do
-				worldPos = {
+				local worldPos = {
 					x = (pos.x + math.cos(azimuth) * dis + gridFilter/2) // gridFilter * gridFilter,
 					y = (pos.y + math.sin(azimuth) * dis + gridFilter/2) // gridFilter * gridFilter
 				}
 			
-				depthFound = false
+				local depthFound = false
 				if P[worldPos.x] and P[worldPos.x][worldPos.y] then
 					depth = P[worldPos.x][worldPos.y].depth
 					depthFound = true
@@ -1074,7 +1114,19 @@ function onTick()
 					dis = dis
 					})
 			end
-			--print(vertDispPoints)
+			
+			displayedPos = {x = pos.x, y = pos.y}
+			
+			if showRadarPressData then
+				local worldAngle = math.atan(radarPressData.worldPos.y - displayedPos.y, radarPressData.worldPos.x - displayedPos.x)
+				local worldDis = -math.sqrt((radarPressData.worldPos.x - displayedPos.x)^2 + (radarPressData.worldPos.y - displayedPos.y)^2)
+				radarPressData.relx = math.sin(worldAngle-azimuth) * worldDis / (displayRange/30)
+				radarPressData.rely = -math.cos(worldAngle-azimuth) * worldDis / (displayRange/30)
+
+				if not isInsideRadarDisplay(w/2 + radarPressData.relx, h/2 - (radarPressData.rely + (drawCenterY + pixelRadius - cutoffY))) then
+					showRadarPressData = false
+				end
+			end
         end
 	
 		coll_warn = false
@@ -1087,11 +1139,36 @@ function onTick()
 						}
 					
 					if P[worldPos.x] and P[worldPos.x][worldPos.y] then
-						if P[worldPos.x][worldPos.y].depth > draught*1.3 and (dis / velocity) < coll_warn_secs then
+						if P[worldPos.x][worldPos.y].depth > (-draught*1.3-2) and (dis / velocity) < coll_warn_secs and velocity > 8 then
 							coll_warn = true
 						end
 					end
 				end
+			end
+		end
+		
+		if click and isInsideRadarDisplay(touchX, touchY) then
+			radarPressData = isInsideRadarDisplay(touchX, touchY)
+			showRadarPressData = not showRadarPressData
+			if showRadarPressData then
+				local worldPos = {
+					x = (displayedPos.x + math.cos(azimuth + radarPressData.relAngle) * radarPressData.screenDis * displayRange/30 + gridFilter/2) // gridFilter * gridFilter,
+					y = (displayedPos.y + math.sin(azimuth + radarPressData.relAngle) * radarPressData.screenDis * displayRange/30 + gridFilter/2) // gridFilter * gridFilter
+				}
+				
+				local depth
+				if P[worldPos.x] and P[worldPos.x][worldPos.y] then
+					depth = P[worldPos.x][worldPos.y].depth
+				elseif useAvgCalc then
+					depth = findAvgDepth(worldPos.x, worldPos.y)
+				end
+				depth = depth or "nil"
+				
+				radarPressData.depth = depth
+				radarPressData.worldPos = {
+					x = worldPos.x,
+					y = worldPos.y
+				}
 			end
 		end
 	
@@ -1112,12 +1189,20 @@ function onTick()
     
     zoom_in = isPressing and check(w / 2 - 16, 2, 7, 7)
     if zoom_in and click then
-    	displayRange = math.max(displayRange - zoomStep, 100)
+    	if zoom <= 100 then
+    		displayRange = math.max(displayRange - 25, 25)
+    	else
+    		displayRange = math.max(displayRange - zoomStep, 100)
+    	end
     end
     
-    zoom_out = isPressing and check(w / 2 + 12, 2, 2, 7, 7)
+    zoom_out = isPressing and check(w / 2 + 12, 2, 7, 7)
     if zoom_out and click then
-    	displayRange = math.min(displayRange + zoomStep, 5000)
+    	if zoom < 100 then
+    		zoom = zoom + 25
+    	else
+    		displayRange = math.min(displayRange + zoomStep, 5000)
+    	end
     end
     
     higher = isPressing and check(w / 2 - 27, h / 2 + 15, 7, 7)
@@ -1158,6 +1243,11 @@ end
 
 function onDraw()
     w, h = screen.getWidth(), screen.getHeight()
+    
+    if showRadarPressData then
+    	sC(0, 0, 0, 180)
+    	dRF(1, 1, 64, 64)
+    end
 
 
 
@@ -1198,10 +1288,10 @@ function onDraw()
 
 
 
-    drawCenterY = -50
-    pixelRadius = 71
-    FOV = math.rad(43)
-    cutoffY = 30
+    -- drawCenterY = -50
+    -- pixelRadius = 71
+    -- FOV = math.rad(43)
+    -- cutoffY = 30
     sC(255, 255, 255)
 
     dL(
@@ -1239,7 +1329,7 @@ function onDraw()
 	sC(255, 0, 0)
 	for _, point in ipairs(vertDispPoints) do
 		if point.depthFound and point.depth >= vertDispDepth then
-			if point.depth > draught * 1.3 then
+			if point.depth > (-draught*1.3-2) then
 				y = -1
 				sC(255, 0, 0)
 			elseif point.depth > -20 then
@@ -1258,11 +1348,54 @@ function onDraw()
 			)
 		end
 	end
-
+	
     sC(255, 255, 255)
     dR(w / 2 - 19, h / 2 + 14, 39, 15)
     dL(w / 2 - 20, h / 2 + 16, w / 2 - 17, h / 2 + 16)
     dL(w/2, h/2+9, w/2, h/2+12)
+	
+	if showRadarPressData then
+		
+		local screenPointPos = {x = w/2 + radarPressData.relx, y = h/2 - (radarPressData.rely + (drawCenterY + pixelRadius - cutoffY))}
+		
+		
+		local radarDisplayCenter = {x = w/2, y = h/2 - (drawCenterY + pixelRadius - cutoffY/2)}
+		local angle = math.atan(radarDisplayCenter.y - screenPointPos.y , radarDisplayCenter.x - screenPointPos.x)
+		local a, b = (screenPointPos.x + math.cos(angle) * 14 - 10)//1, (screenPointPos.y + math.sin(angle) * 14 - 3)//1
+		
+		sC(0, 0, 0)
+		dRF(a, b-2, 20, 8)
+		sC(255, 255, 255)
+		dR(a, b-2, 20, 8)
+		
+		sC(0, 200, 0)
+		screen.drawTextBox(
+			a, 
+			b, 
+			20, 
+			6,
+			type(radarPressData.depth) == "number" and string.format("%.0f", -radarPressData.depth) or radarPressData.depth, 
+			0, 
+			0
+		)
+		
+		sC(255, 255, 0)
+		screen.drawCircle(screenPointPos.x//1, screenPointPos.y//1, 1)
+
+		sC(0, 0, 0)
+		dRF(w/2 - 32, h/2 + 12, 64, 20)
+		
+		sC(255, 255, 255)
+		dT(w/2 - 28, h/2 + 16, "X:")
+		dT(w/2 - 28, h/2 + 24, "Y:")
+		sC(0, 255, 0)
+		dT(w/2 - 18, h/2 + 16, string.format("%.0f", radarPressData.worldPos.x))
+		dT(w/2 - 18, h/2 + 24, string.format("%.0f", radarPressData.worldPos.y))
+	end
+	
+	
+	
+
 
     if coll_warn_active then
     	sC(0,0,0)
