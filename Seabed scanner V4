@@ -1309,11 +1309,11 @@ function onDraw()
 
     sC(0, 0, 0)
     if math.abs(hi_boundary) > 1000 then
-        dRF(3, h / 2 - 9, 12, 7)
+        dRF(3, h / 2 - 9, 13, 7)
     end
 
-    if math.abs(hi_boundary) > 1000 then
-        dRF(3, h / 2 + 1, 12, 7)
+    if math.abs(lo_boundary) > 1000 then
+        dRF(3, h / 2 + 1, 13, 7)
     end
 
     sC(255, 255, 255)
