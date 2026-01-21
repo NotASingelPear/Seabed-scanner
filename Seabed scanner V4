@@ -818,7 +818,7 @@ pos = { x = 0, y = 0 }
 prevPos = pos
 displayedPos = pos
 tick = 0
-displayRange = 300
+displayRange = 500
 vertDispDepth = -200
 vertDisplayLength = 40
 coll_warn_startTick = -math.huge
@@ -1308,11 +1308,11 @@ function onDraw()
 
 
     sC(0, 0, 0)
-    if math.abs(hi_boundary) > 1000 then
+    if math.abs(hi_boundary) >= 1000 then
         dRF(3, h / 2 - 9, 13, 7)
     end
 
-    if math.abs(lo_boundary) > 1000 then
+    if math.abs(lo_boundary) >= 1000 then
         dRF(3, h / 2 + 1, 13, 7)
     end
 
@@ -1368,7 +1368,7 @@ function onDraw()
     sC(255, 255, 255)
     dR(w / 2 - 19, h / 2 + 14, vertDisplayLength - 1, 15)
     dL(w / 2 - 20, h / 2 + 16, w / 2 - 17, h / 2 + 16)
-    dL(w / 2, h / 2 + 8, w / 2, h / 2 + 11)
+    dL(w / 2, h / 2 + 9, w / 2, h / 2 + 12)
 
     if showRadarPressData then
         local screenPointPos = {
@@ -1459,7 +1459,7 @@ end
 gB, sB, gN, sN, sC, dTB, dT, dR, dRF, dL = input.getBool, output.setBool, input.getNumber, output.setNumber,
     screen.setColor, screen.drawTextBox, screen.drawText, screen.drawRect, screen.drawRectF, screen.drawLine
 
-hi_boundary, lo_boundary = -3400, -3500
+hi_boundary, lo_boundary = 0, -200
 w, h = 0, 0
 
 collisionWarnMuted = not property.getBool("Collision warning")
@@ -1709,4 +1709,3 @@ function onDraw()
     sC(0, 0, 0, (1 - brt) * 255)
     dRF(1, 1, w, h)
 end
-
