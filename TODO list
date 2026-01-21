@@ -7,6 +7,7 @@ FEATURES
 - DONE       Ability to click on a point and show depth ++
 
 BUGS
+- Radar image touch uses wrong parameter for the upper portion of the display. Cannot click in the upper portion.
 - Vertical display: when zooming in the pixels are spread out and jumps outside of the display.
 - DONE       Make collision warning use track, instead of azimuth
 - DONE?      Red depths are overwritten constantly
