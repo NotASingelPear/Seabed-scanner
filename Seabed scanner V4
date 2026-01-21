@@ -1027,8 +1027,8 @@ function onTick()
     click = isPressing and hasPressed
     touchX = gN(7)
     touchY = gN(8)
-    hi_boundary, lo_boundary = -2200, -4000 --gN(4), gN(5)
-    run = tick > 1                          --gB(3) and tick > 1
+    hi_boundary, lo_boundary = gN(4), gN(5)
+    run = gB(3) and tick > 1
     rec_size = 10000
 
     prevPos = { x = pos.x, y = pos.y }
@@ -1442,11 +1442,6 @@ end
 -- 	print( (point.depth + (subMode and -pos.z or 0)) / (vertDispDepth ) )
 -- 	-- print((vertDispDepth + (subMode and pos.z or 0)))
 -- end
-
-
-
-
-
 
 
 
