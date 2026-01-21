@@ -1457,11 +1457,14 @@ end
 
 -------------------------------------------------
 
+--Options page
+
+
 
 gB, sB, gN, sN, sC, dTB, dT, dR, dRF, dL = input.getBool, output.setBool, input.getNumber, output.setNumber,
     screen.setColor, screen.drawTextBox, screen.drawText, screen.drawRect, screen.drawRectF, screen.drawLine
 
-hi_boundary, lo_boundary = 0, -200
+hi_boundary, lo_boundary = -3400, -3500
 w, h = 0, 0
 
 collisionWarnMuted = not property.getBool("Collision warning")
@@ -1471,6 +1474,12 @@ subMode = property.getBool("Submarine mode")
 
 gridSizes = { 1, 2, 5, 10, 20 }
 currentGridTableI = 4
+
+hi_boundaryMax = 0
+lo_boundaryMin = -4000
+hi_boundaryMin = lo_boundaryMin + 100
+lo_boundaryMax = hi_boundaryMax - 100
+depthDisplayUpper = 0
 
 function check(x, y, w, h)
     return (touchX >= x and touchX <= x + w and touchY >= y and touchY <= y + h)
@@ -1501,30 +1510,36 @@ function onTick()
         collisionWarnMuted = not collisionWarnMuted
     end
 
-    hi_inc = isPressing and check(w / 2 - 5, h / 2 - 18, 6, 6)
+    hi_inc = isPressing and check(w / 2 - 5, h / 2 - 14, 6, 6)
     if hi_inc then
-        if click and hi_boundary < 0 then
+        if click and hi_boundary < hi_boundaryMax then
             hi_boundary = hi_boundary + 100
         end
     end
 
-    hi_dec = isPressing and check(w / 2 - 5, h / 2 - 11, 6, 6)
+    hi_dec = isPressing and check(w / 2 - 5, h / 2 - 7, 6, 6)
     if hi_dec then
-        if click and hi_boundary > lo_boundary + 100 then
+        if click and hi_boundary > hi_boundaryMin then
             hi_boundary = hi_boundary - 100
+            if hi_boundary <= lo_boundary then
+            	lo_boundary = hi_boundary-100
+            end
         end
     end
 
-    lo_inc = isPressing and check(w / 2 - 5, h / 2 + 12, 6, 6)
+    lo_inc = isPressing and check(w / 2 - 5, h / 2 + 15, 6, 6)
     if lo_inc then
-        if click and lo_boundary < hi_boundary - 100 then
+        if click and lo_boundary < lo_boundaryMax then
             lo_boundary = lo_boundary + 100
+            if lo_boundary >= hi_boundary then
+            	hi_boundary = lo_boundary+100
+            end
         end
     end
 
-    lo_dec = isPressing and check(w / 2 - 5, h / 2 + 19, 6, 6)
+    lo_dec = isPressing and check(w / 2 - 5, h / 2 + 22, 6, 6)
     if lo_dec then
-        if click and lo_boundary > -500 then
+        if click and lo_boundary > lo_boundaryMin then
             lo_boundary = lo_boundary - 100
         end
     end
@@ -1571,25 +1586,83 @@ function onDraw()
     sC(255, 255, 255)
     dTB(1, 1, w, 10, "OPTIONS", 0)
 
-    dButton(w / 2 - 5, h / 2 - 18, "+", hi_inc)
-    dButton(w / 2 - 5, h / 2 - 11, "-", hi_dec)
-    dButton(w / 2 - 5, h / 2 + 12, "+", lo_inc)
-    dButton(w / 2 - 5, h / 2 + 19, "-", lo_dec)
-
-    sC(0, 255, 0)
-    dR(w / 2 - 27, hi_boundary / -500 * 35 - 18 + h / 2, 20, 7)
-    dL(w / 2 - 30, hi_boundary / -500 * 35 - 15 + h / 2, w / 2 - 27, hi_boundary / -500 * 35 + h / 2 - 15)
-    dR(w / 2 - 27, lo_boundary / -500 * 35 - 18 + h / 2, 20, 7)
-    dL(w / 2 - 30, lo_boundary / -500 * 35 - 15 + h / 2, w / 2 - 27, lo_boundary / -500 * 35 + h / 2 - 15)
-    dL(w / 2 - 30, hi_boundary / -500 * 35 - 15 + h / 2, w / 2 - 30, lo_boundary / -500 * 35 + h / 2 - 15)
-
-    sC(255, 255, 255)
-    for i = 0, 5 do
-        dTB(w / 2 - 27, h / 2 + i * 7 - 17, 20, 5, i * 100, 0)
-    end
+    dButton(w / 2 - 5, h / 2 - 14, "+", hi_inc)
+    dButton(w / 2 - 5, h / 2 - 7, "-", hi_dec)
+    dButton(w / 2 - 5, h / 2 + 15, "+", lo_inc)
+    dButton(w / 2 - 5, h / 2 + 22, "-", lo_dec)
 
 
-
+	sC(255, 255, 255)
+	if math.abs(hi_boundary - lo_boundary) <= 400 then
+		if hi_boundary > depthDisplayUpper-100 then
+			depthDisplayUpper = hi_boundary+100
+		end
+		
+		if lo_boundary < depthDisplayUpper-500 then
+			depthDisplayUpper = lo_boundary+500
+		end
+		
+		for i = 0, 6 do
+			local depth = depthDisplayUpper - i * 100
+			if depth <= hi_boundaryMax and depth >= lo_boundaryMin then
+				if depth == hi_boundary or depth == lo_boundary then
+					sC(255, 255, 255)
+				else
+					sC(50, 50, 50)
+				end
+				
+	        	dTB(w / 2 - 27, h / 2 + i * 7 - 17, 20, 5, -(depthDisplayUpper - i * 100), 0)
+	        end
+		end
+    
+    	sC(0, 255, 0)
+	    dR(w / 2 - 29, (hi_boundary-depthDisplayUpper) / -500 * 35 - 18 + h / 2, 22, 7)
+	    dL(w / 2 - 31, (hi_boundary-depthDisplayUpper) / -500 * 35 - 15 + h / 2, w / 2 - 29, (hi_boundary-depthDisplayUpper) / -500 * 35 + h / 2 - 15)
+	    dR(w / 2 - 29, (lo_boundary-depthDisplayUpper) / -500 * 35 - 18 + h / 2, 22, 7)
+	    dL(w / 2 - 31, (lo_boundary-depthDisplayUpper) / -500 * 35 - 15 + h / 2, w / 2 - 29, (lo_boundary-depthDisplayUpper) / -500 * 35 + h / 2 - 15)
+	    dL(w / 2 - 31, (hi_boundary-depthDisplayUpper) / -500 * 35 - 15 + h / 2, w / 2 - 31, (lo_boundary-depthDisplayUpper) / -500 * 35 + h / 2 - 15)
+    
+	else
+		for i = -1, 1 do
+			local depth = hi_boundary + i * -100
+			if depth <= hi_boundaryMax then
+				if depth == hi_boundary then
+					sC(255, 255, 255)
+				else
+					sC(50, 50, 50)
+				end
+				
+	        	dTB(w / 2 - 27, h / 2 + (i+1) * 7 - 17, 20, 5, -(hi_boundary - i * 100), 0)
+			end
+		end
+		
+		for i = -1, 1 do
+			local depth = lo_boundary + i * -100
+			if depth >= lo_boundaryMin then
+				if depth == lo_boundary then
+					sC(255, 255, 255)
+				else
+					sC(50, 50, 50)
+				end
+				
+	        	dTB(w / 2 - 27, h / 2 + (i+1) * 7 - 17 + 7*4, 20, 5, -(lo_boundary - i * 100), 0)
+			end
+		end
+		
+		sC(50, 50, 50)
+		for i = 0, 2 do
+			dRF(w/2 - 17, h/2 + 4 + i*2, 1, 1)
+		end
+		
+		sC(0, 255, 0)
+	    dR(w / 2 - 29, h / 2 + 17, 22, 7)
+	    dL(w / 2 - 31, h / 2 - 8, w / 2 - 29, h / 2 - 8)
+	    dR(w / 2 - 29, h / 2 - 11, 22, 7)
+	    dL(w / 2 - 31, h / 2 + 20, w / 2 - 29, h / 2 + 20)
+	    dL(w / 2 - 31, h / 2 - 8, w / 2 - 31, h / 2 + 20)
+	end
+	
+	sC(255, 255, 255)
     dTB(w / 2 + 2, h / 2 - 16, 28, 5, "ALARM", 0, 0)
     if alarmPressed then
         dRF(w / 2 + 2, h / 2 - 18, 28, 15)
@@ -1638,14 +1711,7 @@ function onDraw()
     dTB(w / 2 + 2, h / 2 + 25, 28, 5, txt, 0, 0)
 
 
-    --[[	sC(255,255,255)
-	dT(2,2,"A")
-	sC(255,0,0)
-	dL(1,7,6,1)
-	dL(1,1,6,7)]]
-
     sC(0, 0, 0, (1 - brt) * 255)
     dRF(1, 1, w, h)
 end
-
 
